@@ -61,7 +61,7 @@ class AbsCursesWizard(AbsWizard) :
       subarea.addstr(0, 1, message, titleColor + curses.A_BOLD)
       k = 0
       sel = 0
-      while k != 10 :
+      while ( k != 10 and k != 32 ) :
          l = 0
          for i in range(len(options)) :
             if i == sel :
@@ -644,7 +644,7 @@ class CursesBoolean(CursesWidget) :
          drawable.addstr(y, x, "[ ] " + self.label, attr)
 
    def processKey(self, key) :
-      if key == 10 and self.enabled :
+      if ( key == 10 or key == 32 ) and self.enabled :
          if self.value == 0 :
             self.value = 1
          else :
@@ -684,7 +684,7 @@ class CursesButton(CursesWidget) :
       drawable.addstr(y+1, x+2, self.label, attr)
 
    def processKey(self, key) :
-      if key == 10 and self.enabled :
+      if ( key == 10 or key == 32 ) and self.enabled :
          if self.callBack != None :
             self.callBack()
       elif key == curses.KEY_UP :
