@@ -33,7 +33,7 @@ class AbsQtWizard(AbsWizard):
 		self.qwizard.setGeometry(QRect(50, 50, 480, 400))
 		self.messageBoxPending = 0
 
-	def showMessageBox(self, message, buttons = ['Ok, Cancel']):
+	def showMessageBox(self, message, buttons = ['Ok', 'Cancel']):
 		if self.messageBoxPending:
 			return ''
 		self.messageBoxPending = 1
