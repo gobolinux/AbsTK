@@ -231,9 +231,10 @@ class CursesList(CursesWidget) :
       self.items = items
       self.value = 0
       self.scrollH = 0
-      for i in range(len(items)) :
-         if items[i] == defaultValue :
-            self.value = i
+      if defaultValue :
+         for i in range(len(items)) :
+            if items[i] == defaultValue :
+               self.value = i
       self.inside = 0
       self.enabled = 1
       self.label = label
