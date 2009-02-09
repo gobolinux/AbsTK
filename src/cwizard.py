@@ -378,7 +378,7 @@ class CursesDropList(CursesWidget) :
       self.y = y
 
    def processKey(self, key) :
-      if key == 10 and self.enabled :
+      if ( key == 10 or key == 32 ) and self.enabled :
          areaX = min(maxX-6-self.maxitemlength,self.x+len(self.label)+3)
          areaY = max(6,self.y-(min(8,len(self.items)+2)/2)+1)
          areaHeight = min(8,len(self.items))
@@ -411,7 +411,7 @@ class CursesDropList(CursesWidget) :
                sel = sel + 1
                if sel == len(self.items):
                   sel = 0
-            elif k == 10 :
+            elif ( k == 10 or k == 32 ) :
                self.value = sel
                if self.callBack != None :
                   self.callBack()
