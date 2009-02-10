@@ -61,6 +61,7 @@ class AbsCursesWizard(AbsWizard) :
       subarea.addstr(0, 1, message, titleColor + curses.A_BOLD)
       k = 0
       sel = 0
+      global uglyHack
       while ( k != 10 and k != 32 ) :
          l = 0
          for i in range(len(options)) :
@@ -80,7 +81,9 @@ class AbsCursesWizard(AbsWizard) :
             sel = sel - 1
             if sel == - 1 :
                sel = len(options) - 1
-      global uglyHack
+         elif k == 27 :
+            uglyHack = 1
+            return -2
       uglyHack = 1
       return options[sel]
 
