@@ -230,6 +230,7 @@ class CursesList(CursesWidget) :
       self.first = 0
       self.items = items
       self.value = 0
+      self.oldvalue = 0
       self.scrollH = 0
       if defaultValue :
          for i in range(len(items)) :
@@ -301,6 +302,10 @@ class CursesList(CursesWidget) :
             self.inside = 0
             if self.callBack != None :
                self.callBack()
+         elif key == 27 :
+	    self.inside = 0
+	    self.value = self.oldvalue
+	    return -2
          elif key == curses.KEY_UP :
             v = v - 1
             if v == -1 :
@@ -324,6 +329,7 @@ class CursesList(CursesWidget) :
             self.first = v-((self.height-3)-1)
       else :
          if key == 10 and self.enabled :
+            self.oldvalue = self.value
             self.inside = 1
          elif key == curses.KEY_UP :
             return -1
@@ -339,6 +345,7 @@ class CursesDropList(CursesWidget) :
       self.first = 0
       self.items = items
       self.value = 0
+      self.oldvalue = 0
       self.maxitemlength = len(items[0])
       for i in range(len(items)) :
          if items[i] == defaultValue :
@@ -378,7 +385,9 @@ class CursesDropList(CursesWidget) :
       self.y = y
 
    def processKey(self, key) :
+      global uglyHack
       if ( key == 10 or key == 32 ) and self.enabled :
+	 self.oldvalue = self.value
          areaX = min(maxX-6-self.maxitemlength,self.x+len(self.label)+3)
          areaY = max(6,self.y-(min(8,len(self.items)+2)/2)+1)
          areaHeight = min(8,len(self.items))
@@ -411,12 +420,15 @@ class CursesDropList(CursesWidget) :
                sel = sel + 1
                if sel == len(self.items):
                   sel = 0
+            elif k == 27 :
+               self.value = self.oldvalue
+               uglyHack = 1
+               return -2
             elif ( k == 10 or k == 32 ) :
                self.value = sel
                if self.callBack != None :
                   self.callBack()
                break
-         global uglyHack
          uglyHack = 1
          return 0 
       elif key == curses.KEY_UP :
@@ -433,6 +445,7 @@ class CursesTextBox(CursesWidget) :
       self.first = 0
       self.label = label
       self.value = defaultValue.split("\n")
+      self.oldvalue = self.value
       self.inside = 0
       self.enabled = 1
       self.callBack = callBack
@@ -472,6 +485,10 @@ class CursesTextBox(CursesWidget) :
             self.inside = 0
             if self.callBack != None :
                self.callBack()
+         elif key == 27 :
+	    self.inside = 0
+	    self.value = self.oldvalue
+	    return -2
          elif key == curses.KEY_UP :
             f = f - 1
             if f == -1 :
@@ -490,6 +507,7 @@ class CursesTextBox(CursesWidget) :
          self.first = f
       else :
          if key == 10 and self.enabled :
+            self.oldvalue = self.value
             self.inside = 1
          elif key == curses.KEY_UP :
             return -1
@@ -512,6 +530,7 @@ class CursesCheckList(CursesWidget) :
       self.first = 0
       self.items = items
       self.value = defaultValue
+      self.oldvalue = defaultValue
       self.current = 0
       self.inside = 0
       self.enabled = 1
@@ -577,6 +596,10 @@ class CursesCheckList(CursesWidget) :
             self.inside = 0
             if self.callBack != None :
                self.callBack()
+         if key == 27 :
+	     self.inside = 0
+	     self.value = self.oldvalue
+	     return -2
          if key == 32 :
             if self.value[c] == 0 :
                self.value[c] = 1
@@ -610,6 +633,7 @@ class CursesCheckList(CursesWidget) :
                self.first = c-((self.height-3)-1)
       else :
          if key == 10 and self.enabled :
+            self.oldvalue = self.value[:]
             self.inside = 1
          elif key == curses.KEY_UP :
             return -1
@@ -663,6 +687,7 @@ class CursesButton(CursesWidget) :
       self.height = 3
       self.label = label
       self.value = value
+      self.oldvalue = value
       self.enabled = 1
       self.callBack = callBack
       self.tooltip = tooltip
@@ -742,6 +767,11 @@ class CursesEntry(CursesWidget) :
             self.inside = 0
             if self.callBack != None :
                self.callBack()
+         elif key == 27 :
+            self.value = self.oldvalue
+            self.cursor = len(self.value)
+            self.inside = 0
+            return -2
          elif (key >= 32 and key <= 126) or (key >= 128 and key <= 255) :
             cur = self.cursor
             self.value = self.value[:cur] + chr(key) + self.value[cur:]
@@ -765,6 +795,7 @@ class CursesEntry(CursesWidget) :
          return 2
       else :
          if key == 10 and self.enabled :
+            self.oldvalue = self.value
             self.inside = 1
          elif key == curses.KEY_UP :
             return -1
