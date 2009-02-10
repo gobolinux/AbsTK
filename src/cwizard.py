@@ -98,6 +98,10 @@ class AbsCursesWizard(AbsWizard) :
       global forceRedraw
       forceRedraw = 0
       while 1:
+         if self.currentScreen != 0 :
+            stdscr.addstr(maxY-3, maxX-39, " Previous <- ", buttonColor)
+         else :
+            stdscr.addstr(maxY-3, maxX-39, "             ", defaultColor)
          if self.currentScreen == scrcount - 1 :
             stdscr.addstr(maxY-3, maxX-25, " -> Done ", buttonColor)
          else :
