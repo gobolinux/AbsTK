@@ -61,7 +61,7 @@ class AbsCursesWizard(AbsWizard) :
       subarea.addstr(0, 1, message, titleColor + curses.A_BOLD)
       k = 0
       sel = 0
-      global uglyHack
+      global forceRedraw
       while ( k != 10 and k != 32 ) :
          l = 0
          for i in range(len(options)) :
@@ -82,9 +82,9 @@ class AbsCursesWizard(AbsWizard) :
             if sel == - 1 :
                sel = len(options) - 1
          elif k == 27 :
-            uglyHack = 1
+            forceRedraw = 1
             return -2
-      uglyHack = 1
+      forceRedraw = 1
       return options[sel]
 
    def __main(self, stdscr):
@@ -95,8 +95,8 @@ class AbsCursesWizard(AbsWizard) :
       k = 0
       self.__drawScreen()
       scrcount = len(self.screens)
-      global uglyHack
-      uglyHack = 0
+      global forceRedraw
+      forceRedraw = 0
       while 1:
          if self.currentScreen == scrcount - 1 :
             stdscr.addstr(maxY-3, maxX-25, " -> Done ", buttonColor)
@@ -104,9 +104,9 @@ class AbsCursesWizard(AbsWizard) :
             stdscr.addstr(maxY-3, maxX-25, " -> Next ", buttonColor)
          self.screens[self.currentScreen].draw()
          stdscr.move(maxY-1,maxX-1)
-         if uglyHack == 1:
+         if forceRedraw == 1:
             k = 0
-            uglyHack = 0
+            forceRedraw = 0
             stdscr.refresh()
          else :
             k = stdscr.getch()
@@ -388,7 +388,7 @@ class CursesDropList(CursesWidget) :
       self.y = y
 
    def processKey(self, key) :
-      global uglyHack
+      global forceRedraw
       if ( key == 10 or key == 32 ) and self.enabled :
 	 self.oldvalue = self.value
          areaX = min(maxX-6-self.maxitemlength,self.x+len(self.label)+3)
@@ -425,14 +425,14 @@ class CursesDropList(CursesWidget) :
                   sel = 0
             elif k == 27 :
                self.value = self.oldvalue
-               uglyHack = 1
+               forceRedraw = 1
                return -2
             elif ( k == 10 or k == 32 ) :
                self.value = sel
                if self.callBack != None :
                   self.callBack()
                break
-         uglyHack = 1
+         forceRedraw = 1
          return 0 
       elif key == curses.KEY_UP :
          return -1
