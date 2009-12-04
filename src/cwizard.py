@@ -291,7 +291,7 @@ class CursesList(CursesWidget) :
          w.attrset(attrdefault)
          w.border()
          i = self.first
-         drawable.addstr(y+(((self.value+0.0)/max(len(self.items),1))*(self.height-3))+2, x+self.width-1, "*", attrdefault)
+         drawable.addstr(int(y+(((self.value+0.0)/max(len(self.items),1))*(self.height-3))+2), x+self.width-1, "*", attrdefault)
          ypos = y+2
          for item in self.items[i:i+5] :
             cropItem = item[self.scrollH:self.width-2+self.scrollH].ljust(self.width-2)
@@ -580,7 +580,7 @@ class CursesCheckList(CursesWidget) :
          w = drawable.subwin(self.height-1, self.width, y+1, x)
          w.attrset(attrdefault)
          w.border()
-         drawable.addstr(y+(((curr+0.0)/len(self.items))*(self.height-3))+2, x+self.width-1, "*", attrdefault)
+         drawable.addstr(int(y+(((curr+0.0)/len(self.items))*(self.height-3))+2), x+self.width-1, "*", attrdefault)
          ypos = y+2
          xpos = x+1
       currItem = self.items[curr]
