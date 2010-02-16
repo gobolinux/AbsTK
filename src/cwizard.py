@@ -967,6 +967,8 @@ global defaultColor, disabledColor, titleColor, buttonColor, widgetColor
 stdscr=curses.initscr()
 global maxX, maxY
 (maxY, maxX) = stdscr.getmaxyx()
+maxX=min(maxX,79)
+maxY=min(maxY,24)
 curses.start_color()
 setColor(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
 setColor(2, curses.COLOR_BLACK, curses.COLOR_BLUE)
