@@ -4,9 +4,50 @@
 import curses, curses.textpad, traceback, string, time
 from wizard import *
 
+class keys :
+   TAB = 9
+   ENTER = 10
+   ESC = 27
+   SPACE = 32
+
+class actions :
+   PASSTHROUGH = 0
+   HANDLED = -2
+   PREV = -1
+   NEXT = 1
+   FOCUS_ON_BUTTONS = 10
+
+class buttons :
+   PREVIOUS = 0
+   NEXT = 1
+   QUIT = 2
+   LAST = 2
+
 def setColor(color, fg, bg):
    try : curses.init_pair(color, fg, bg)
    except : pass
+
+def drawScrollBar(drawable, x, y, h, percent) :
+   for i in range(h-1) :
+      drawable.addstr(y + i, x, " ", widgetColor)
+   pch = percent * (h - 2)
+   drawable.addstr(y, x, "^", buttonColor)
+   drawable.addstr(y+int(pch)+1, x, "*", buttonColor)
+   drawable.addstr(y+h-1, x, "v", buttonColor)
+      
+def drawButton(drawable, x, y, buttonText, focus, hidden=False) :
+   if hidden :
+      drawable.addstr(y, x, " " * len(buttonText), defaultColor)
+   else :
+      drawable.addstr(y, x, buttonText, buttonColor)
+   (left, right) = (" ", " ")
+   if focus :
+      (left, right) = (">", "<")
+   drawable.addstr(y, x-1, left, titleColor)
+   drawable.addstr(y, x+len(buttonText), right, titleColor)
+
+def hideCursor() :
+   stdscr.move(maxY-1,maxX-1)
 
 def debug(s):
    stdscr.addstr(0, 0, str(s))
@@ -40,17 +81,28 @@ class AbsCursesWizard(AbsWizard) :
       curses.echo()
       curses.nocbreak()
       curses.endwin()
+      
+   def __movementHelp(self):
+      stdscr.addstr(maxY-3, 1, " Tab: move focus   Enter: select ", defaultColor)
+      
+   def __drawButtons(self, focus) :
+      if self.currentScreen == len(self.screens) - 1 :
+         next = " -> Done "
+      else :
+         next = " -> Next "
+      drawButton(stdscr, maxX-35, maxY-3, " Previous <- ", focus == buttons.PREVIOUS, self.currentScreen == 0)
+      drawButton(stdscr, maxX-20, maxY-3, next, focus == buttons.NEXT, False)
+      drawButton(stdscr, maxX-9, maxY-3, " Quit ", focus == buttons.QUIT, False)
 
-   def __drawScreen(self):
-      stdscr.clear()
+   def __drawScreen(self) :
+      # stdscr.clear()
       stdscr.subwin(maxY-1,maxX,0,0).box()
-      stdscr.addstr(maxY-3, 1, " Up/Dn: Move  Enter: Focus ", defaultColor)
-      stdscr.addstr(maxY-3, maxX-25, " -> Next ", buttonColor)
-      stdscr.addstr(maxY-3, maxX-15, " Esc: Cancel ", buttonColor)
+      self.__movementHelp()
+      self.__drawButtons(None)
       self.screens[self.currentScreen].draw()
       stdscr.refresh()
 
-   def showMessageBox(self, message, options=['Ok','Cancel']) :
+   def showMessageBox(self, message, options=["Ok", "Cancel"], default=0) :
       area = stdscr.subwin(8, maxX-10, maxY/2-4, 5)
       area.clear()
       area.box()
@@ -58,22 +110,19 @@ class AbsCursesWizard(AbsWizard) :
       subarea = stdscr.subwin(5, maxX-15, maxY/2-3, 7)
       subarea.idlok(1)
       subarea.scrollok(1)
-      subarea.addstr(0, 1, message, titleColor + curses.A_BOLD)
+      subarea.addstr(0, 1, message, titleColor)
       k = 0
-      sel = 0
+      sel = default
       global forceRedraw
-      while ( k != 10 and k != 32 ) :
+      while ( k != keys.ENTER and k != keys.SPACE ) :
          l = 0
          for i in range(len(options)) :
-            if i == sel :
-               attr = widgetColor
-            else :
-               attr = buttonColor
-            area.addstr(6, 2 + l, " "+options[i]+" ", attr)
+            drawButton(area, 3 + l, 6, " "+options[i]+" ", i == sel)
             l = l + len(options[i]) + 4
          area.refresh()
-         k = area.getch()
-         if k == curses.KEY_RIGHT :
+         hideCursor()
+         k = stdscr.getch()
+         if k == curses.KEY_RIGHT or k == keys.TAB :
             sel = sel + 1
             if sel == len(options) :
                sel = 0
@@ -81,10 +130,10 @@ class AbsCursesWizard(AbsWizard) :
             sel = sel - 1
             if sel == - 1 :
                sel = len(options) - 1
-         elif k == 27 :
-            forceRedraw = 1
-            return -2
-      forceRedraw = 1
+         elif k == keys.ESC :
+            forceRedraw = True
+            return actions.HANDLED
+      forceRedraw = True
       return options[sel]
 
    def __main(self, stdscr):
@@ -94,56 +143,87 @@ class AbsCursesWizard(AbsWizard) :
          return
       k = 0
       self.__drawScreen()
-      scrcount = len(self.screens)
       global forceRedraw
-      forceRedraw = 0
-      while 1:
-         if self.currentScreen != 0 :
-            stdscr.addstr(maxY-3, maxX-39, " Previous <- ", buttonColor)
-         else :
-            stdscr.addstr(maxY-3, maxX-39, "             ", defaultColor)
-         if self.currentScreen == scrcount - 1 :
-            stdscr.addstr(maxY-3, maxX-25, " -> Done ", buttonColor)
-         else :
-            stdscr.addstr(maxY-3, maxX-25, " -> Next ", buttonColor)
-         self.screens[self.currentScreen].draw()
-         stdscr.move(maxY-1,maxX-1)
-         if forceRedraw == 1:
+      forceRedraw = False
+      while 1 :
+         self.__drawButtons(None)
+         screen = self.screens[self.currentScreen]
+         screen.draw()
+         hideCursor()
+         if forceRedraw == True:
             k = 0
-            forceRedraw = 0
+            forceRedraw = False
             stdscr.refresh()
          else :
             k = stdscr.getch()
-         screen = self.screens[self.currentScreen]
-         if not screen.processKey(k) :
-            if k == curses.KEY_LEFT :
-               if self.currentScreen > 0 :
-                  self.currentScreen = self.currentScreen - 1
-            elif k == curses.KEY_RIGHT :
-               if not screen.nextCB or screen.nextCB():
-                  if self.currentScreen < len(self.screens) - 1 :
-                     self.currentScreen = self.currentScreen + 1
+         
+         action = screen.processKey(k)
+         if action == actions.FOCUS_ON_BUTTONS :
+            screen.draw()
+            if self.currentScreen != 0 :
+               firstButton = buttons.PREVIOUS
+            else :
+               firstButton = buttons.NEXT
+            if screen.focus == -1 :
+               currButton = buttons.LAST
+            else :
+               currButton = firstButton
+            while 1 :
+               self.__drawButtons(currButton)
+               hideCursor()
+               bk = stdscr.getch()
+               if bk == curses.KEY_LEFT or bk == curses.KEY_UP :
+                  if currButton == firstButton :
+                     lastActive = len(screen.focusWidgets) - 1
+                     while screen.focusWidgets[lastActive].enabled == False :
+                        lastActive = lastActive - 1
+                     screen.setFocus(lastActive)
+                     break
                   else :
-                     stdscr.addstr(maxY-3, 1, " Enter: Confirm            ", defaultColor)
-                     stdscr.addstr(maxY-3, maxX-25, " -> Done ", widgetColor)
-                     stdscr.move(maxY-1,maxX-1)
-                     k = stdscr.getch()
-                     stdscr.addstr(maxY-3, 1, " Up/Dn: Move  Enter: Focus ", defaultColor)
-                     if k == 10 :
-                        return 1
+                     currButton = currButton - 1
+               elif bk == curses.KEY_RIGHT or bk == keys.TAB or bk == curses.KEY_DOWN :
+                  if currButton == buttons.LAST :
+                     screen.setFocus(0)
+                     break
+                  else :
+                     currButton = currButton + 1
+               elif bk == keys.ENTER :
+                  screen.setFocus(0)
+                  if currButton == buttons.PREVIOUS :
+                     self.currentScreen = self.currentScreen - 1
+                     self.screens[self.currentScreen].setFocus(0)
+                     break
+                  elif currButton == buttons.NEXT :
+                     if not screen.nextCB or screen.nextCB():
+                        if self.currentScreen < len(self.screens) - 1 :
+                           self.currentScreen = self.currentScreen + 1
+                           self.screens[self.currentScreen].setFocus(0)
+                        else :
+                           go = self.showMessageBox("Press Enter to proceed!")
+                           if go == "Ok" :
+                              return 1
+                     break
+                  elif currButton == buttons.QUIT :
+                     go = self.showMessageBox("Are you sure you want to quit?", ["Yes", "No"], 1)
+                     if go == "Yes" :
+                        return 0
+                     break
+         elif action == actions.PASSTHROUGH :
             # Easter egg: MATRIX MODE :)
-            elif k == ord('9') :
+            if k == ord('9') :
                setColor(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
                setColor(2, curses.COLOR_RED, curses.COLOR_BLACK)
                setColor(3, curses.COLOR_GREEN, curses.COLOR_BLACK)
                setColor(4, curses.COLOR_BLACK, curses.COLOR_CYAN)
                setColor(5, curses.COLOR_BLUE, curses.COLOR_GREEN)
+               setColor(6, curses.COLOR_GREEN, curses.COLOR_BLACK)
                defaultColor = curses.color_pair(1)
                disabledColor = curses.color_pair(2) + curses.A_BOLD
                titleColor = curses.color_pair(3)
                buttonColor = curses.color_pair(4)
                widgetColor = curses.color_pair(5)
                widgetDisabledColor = curses.color_pair(5) + curses.A_BOLD
+               currentColor = curses.color_pair(6) + curses.A_BOLD
                stdscr.clear()
                stdscr.addstr(0,0,"Knock, knock.")
                stdscr.getch()
@@ -154,14 +234,14 @@ class AbsCursesWizard(AbsWizard) :
                setColor(3, curses.COLOR_YELLOW, curses.COLOR_BLUE)
                setColor(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
                setColor(5, curses.COLOR_BLACK, curses.COLOR_CYAN)
+               setColor(6, curses.COLOR_CYAN, curses.COLOR_BLUE)
                defaultColor = curses.color_pair(1)
                disabledColor = curses.color_pair(2) + curses.A_BOLD
                titleColor = curses.color_pair(3)
                buttonColor = curses.color_pair(4)
                widgetColor = curses.color_pair(5)
                widgetDisabledColor = curses.color_pair(5) + curses.A_BOLD
-            elif k == 27 :
-               return 0
+               currentColor = curses.color_pair(6) + curses.A_BOLD
 
    def addScreen(self, screen, pos = 0) :
       # Add the screen at the end
@@ -184,7 +264,12 @@ class CursesWidget :
    def __init__() :
       self.height = 1
       self.tooltip = "I DON'T HAVE A TOOLTIP"
-      self.enabled = 1
+      self.enabled = True
+
+   def setEnabled(self, enabled) :
+      self.enabled = enabled
+      if not enabled :
+         self.inside = False
 
    def getHeight(self) :
       return self.height
@@ -222,39 +307,156 @@ class CursesLabel(CursesWidget) :
 
    def draw(self, drawable, x, y) :
       attr = self.makeAttr(0, 1, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
+      drawable.addstr(y, x, " " * (maxX - 10), attr)
       drawable.addstr(y, x, self.label, attr)
 
-class CursesList(CursesWidget) :
+class CursesAbstractList(CursesWidget):
 
    def __init__(self, label, items, defaultValue, callBack, tooltip) :
-      if len(items) < 5 and len(items) != 0:
+      if len(items) < 5 and len(items) > 0 :
          self.height = len(items)+1
-         self.isCompact = 1
+         self.isCompact = True
       else :
          self.height = 8
-         self.isCompact = 0
+         self.isCompact = False
       self.width = maxX - 10
       self.first = 0
       self.items = items
-      self.value = 0
-      self.oldvalue = 0
+      self.value = defaultValue
+      self.current = 0
+      self.inside = False
+      self.enabled = True
+      self.label = label
+      self.callBack = callBack
+      self.tooltip = tooltip
       self.scrollH = 0
+      self.on = "[x]"
+      self.off = "[ ]"
+
+   def isSet(self, i) :
+      return 0
+      
+   def set(self, i) :
+      pass
+
+   def draw(self, drawable, x, y) :
+      attrdefault = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
+      attrlist = attrdefault
+      attritem = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, currentColor)
+      drawable.addstr(y, x, self.label, attrlist)
+      curr = self.current
+      first = self.first
+      last = min(first+(self.height-3), len(self.items))
+      if self.isCompact :
+         ypos = y+1
+         xpos = x
+         last = len(self.items)
+      else :
+         attrlist = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor)
+         attritem = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor, widgetColor + curses.A_STANDOUT)
+         w = drawable.subwin(self.height-1, self.width, y+1, x)
+         w.attrset(attrdefault)
+         w.clear()
+         w.border()
+         pc = max(((curr+0.0)/max(len(self.items),1)), 0)
+         drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
+         ypos = y+2
+         xpos = x+1
+      currItem = 0
+      if len(self.items) > 0 :
+         currItem = self.items[curr]
+      else :
+         return
+      for i in range(first, last) :
+         item = self.items[i]
+         value = self.isSet(i)
+         cropItem = item[self.scrollH:self.width-6+self.scrollH].ljust(self.width-6)
+         if item == currItem :
+            at = attritem
+         else :
+            at = attrlist
+         if value:
+            drawable.addstr(ypos, xpos, self.on + " " + cropItem, at)
+         else :
+            drawable.addstr(ypos, xpos, self.off + " " + cropItem, at)
+         ypos = ypos + 1
+
+   # DONE
+   def processKey(self, key) :
+      c = self.current
+      if key == keys.TAB :
+         return actions.NEXT
+      if key == keys.SPACE or key == keys.ENTER :
+         self.set(c)
+         if self.callBack != None :
+            self.callBack()
+         return actions.HANDLED
+      elif (key >= ord('a') and key <= ord('z')) or (key >= ord('A') and key <= ord('Z')):
+         for i in range(len(self.items)) :
+            if self.items[i][0].lower() == chr(key).lower() :
+               c = i
+               break
+      elif key == curses.KEY_UP :
+         c = c - 1
+      elif key == curses.KEY_DOWN :
+         c = c + 1
+      elif key == curses.KEY_PPAGE :
+         c = c - (self.height - 3)
+      elif key == curses.KEY_NPAGE :
+         c = c + (self.height - 3)
+      elif key == curses.KEY_HOME :
+         c = 0
+      elif key == curses.KEY_END :
+         c = len(self.items) - 1
+      elif key == curses.KEY_RIGHT:
+         if self.isCompact :
+            return actions.FOCUS_ON_BUTTONS
+         self.scrollH = self.scrollH + 10
+         return actions.HANDLED
+      elif key == curses.KEY_LEFT:
+         if self.isCompact :
+            return actions.FOCUS_ON_BUTTONS
+         if self.scrollH > 0:
+            self.scrollH = self.scrollH - 10
+         return actions.HANDLED
+      action = actions.PASSTHROUGH
+      if c != self.current :
+         action = actions.HANDLED
+      if c < 0 :
+         c = 0
+         action = actions.PREV
+      elif c >= len(self.items) :
+         c = len(self.items) - 1
+         action = actions.NEXT
+      self.current = c
+      if not self.isCompact :
+         if c < self.first :
+            self.first = c
+         if c >= self.first+(self.height-3) :
+            self.first = c-((self.height-3)-1)
+      return action
+
+class CursesList(CursesAbstractList) :
+
+   def __init__(self, label, items, defaultValue, callBack, tooltip) :
+      CursesAbstractList.__init__(self, label, items, defaultValue, callBack, tooltip)
+      self.value = 0
       if defaultValue :
          for i in range(len(items)) :
             if items[i] == defaultValue :
                self.value = i
-      self.inside = 0
-      self.enabled = 1
-      self.label = label
-      self.callBack = callBack
-      self.tooltip = tooltip
+               self.current = i
+               break
       if self.value >= self.first + self.height:
          self.first = self.value
+      self.on = "(*)"
+      self.off = "( )"
 
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
-      if not enabled :
-         self.inside = 0
+   def isSet(self, i) :
+      return self.value == i
+      
+   def set(self, i) :
+      self.value = i
 
    def setValue(self, valueTuple) :
       self.items = valueTuple[0][:]
@@ -262,87 +464,43 @@ class CursesList(CursesWidget) :
          self.value = self.items.find(valueTuple[1])
       except :
          self.value = 0
+      self.first = 0
+      self.current = 0
 
-
-   #detsch ([:] to copy the list instead of passing a reference)
    def getValue(self) :
-      if len(self.items) >  self.value:
+      if self.value >= 0 and len(self.items) > self.value:
          v = self.items[self.value]
       else :
          v = 0
+      #detsch ([:] to copy the list, instead of passing a reference)
       return (self.items[:], v)
 
-   def draw(self, drawable, x, y) :
-      attrdefault = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
-      drawable.addstr(y, x, self.label, attrdefault)
-      if self.isCompact :
-         pos = y+1
-         for (item, i) in zip(self.items, range(len(self.items))) :
-            if self.value == i:
-               drawable.addstr(pos, x, "(*) ", attrdefault)
-            else :
-               drawable.addstr(pos, x, "( ) ", attrdefault)
-            drawable.addstr(pos, x+4, item, attrdefault)
-            pos = pos + 1
-      else :
-         attrlist = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor)
-         attritem = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor + curses.A_STANDOUT, widgetColor + curses.A_STANDOUT + curses.A_BOLD)
-         w = drawable.subwin(self.height-1, self.width, y+1, x)
-         w.attrset(attrdefault)
-         w.border()
-         i = self.first
-         drawable.addstr(int(y+(((self.value+0.0)/max(len(self.items),1))*(self.height-3))+2), x+self.width-1, "*", attrdefault)
-         ypos = y+2
-         for item in self.items[i:i+5] :
-            cropItem = item[self.scrollH:self.width-2+self.scrollH].ljust(self.width-2)
-            if self.value == i:
-               drawable.addstr(ypos, x+1, cropItem, attritem)
-            else :
-               drawable.addstr(ypos, x+1, cropItem, attrlist)
-            i = i + 1
-            ypos = ypos + 1
 
-   def processKey(self, key) :
-      if self.inside :
-         v = self.value
-         if key == 10 :
-            self.inside = 0
-            if self.callBack != None :
-               self.callBack()
-         elif key == 27 :
-	    self.inside = 0
-	    self.value = self.oldvalue
-	    return -2
-         elif key == curses.KEY_UP :
-            v = v - 1
-            if v == -1 :
-               v = 0
-            self.value = v
-         elif key == curses.KEY_DOWN :
-            v = v + 1
-            if v == len(self.items) :
-               v = len(self.items) - 1
-            self.value = v
-         elif key == curses.KEY_RIGHT:
-            self.scrollH = self.scrollH + 10
-            return -2
-         elif key == curses.KEY_LEFT:
-            if self.scrollH > 0:
-               self.scrollH = self.scrollH - 10
-            return -2
-         if v < self.first :
-            self.first = v
-         if v >= self.first+(self.height-3) :
-            self.first = v-((self.height-3)-1)
+class CursesCheckList(CursesAbstractList) :
+
+   def __init__(self, label, items, defaultValue, callBack, tooltip) :
+      CursesAbstractList.__init__(self, label, items, defaultValue, callBack, tooltip)
+      self.value = defaultValue
+
+   def setValue(self, valueTuple) :
+      self.items = valueTuple[0][:]
+      self.value = map(lambda item : item in valueTuple[1], self.items)
+      self.first = 0
+      self.current = 0
+      
+   def getValue(self):
+      result = []
+      for (value, item) in zip(self.value, self.items) :
+         if value == 1 :
+            result.append(item)
+      #detsch ([:] to copy the list, instead of passing a reference)
+      return (self.items[:], result)
+
+   def set(self, i) :
+      if self.value[i] == 0 :
+         self.value[i] = 1
       else :
-         if key == 10 and self.enabled :
-            self.oldvalue = self.value
-            self.inside = 1
-         elif key == curses.KEY_UP :
-            return -1
-         elif key == curses.KEY_DOWN or key == 9 :
-            return 1
-      return 0
+         self.value[i] = 0
 
 class CursesDropList(CursesWidget) :
 
@@ -352,23 +510,17 @@ class CursesDropList(CursesWidget) :
       self.first = 0
       self.items = items
       self.value = 0
-      self.oldvalue = 0
       self.maxitemlength = len(items[0])
       for i in range(len(items)) :
          if items[i] == defaultValue :
             self.value = i
-	    self.maxitemlength = max(self.maxitemlength,len(self.items[i]))
-      self.inside = 0
-      self.enabled = 1
+            self.maxitemlength = max(self.maxitemlength,len(self.items[i]))
+      self.inside = False
+      self.enabled = True
       self.label = label
       self.callBack = callBack
       self.tooltip = tooltip
       self.scrollH = 0
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
-      if not enabled :
-         self.inside = 0
 
    def setValue(self, value) :
       v = self.value
@@ -393,8 +545,7 @@ class CursesDropList(CursesWidget) :
 
    def processKey(self, key) :
       global forceRedraw
-      if ( key == 10 or key == 32 ) and self.enabled :
-	 self.oldvalue = self.value
+      if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
          areaX = min(maxX-6-self.maxitemlength,self.x+len(self.label)+3)
          areaY = max(6,self.y-(min(8,len(self.items)+2)/2)+1)
          areaHeight = min(8,len(self.items))
@@ -415,7 +566,7 @@ class CursesDropList(CursesWidget) :
                else :
                   attr = buttonColor
                area.addstr(i+1, 1, self.items[offset+i], attr)
-	       for j in range(self.maxitemlength-len(self.items[offset+i])) :
+               for j in range(self.maxitemlength-len(self.items[offset+i])) :
                   area.addstr(i+1,len(self.items[offset+i])+j+1,' ', attr)
             area.refresh()
             k = area.getch()
@@ -427,21 +578,18 @@ class CursesDropList(CursesWidget) :
                sel = sel + 1
                if sel == len(self.items):
                   sel = 0
-            elif k == 27 :
-               self.value = self.oldvalue
-               forceRedraw = 1
-               return -2
-            elif ( k == 10 or k == 32 ) :
+            elif k == keys.ESC :
+               forceRedraw = True
+               return actions.HANDLED
+            elif ( k == keys.ENTER or k == keys.SPACE ) :
                self.value = sel
                if self.callBack != None :
                   self.callBack()
                break
-         forceRedraw = 1
+         forceRedraw = True
          return 0 
-      elif key == curses.KEY_UP :
-         return -1
-      elif key == curses.KEY_DOWN or key == 9 :
-         return 1
+      elif key == keys.TAB :
+         return actions.NEXT
       return 0
 
 class CursesTextBox(CursesWidget) :
@@ -452,17 +600,11 @@ class CursesTextBox(CursesWidget) :
       self.first = 0
       self.label = label
       self.value = defaultValue.split("\n")
-      self.oldvalue = self.value
-      self.inside = 0
-      self.enabled = 1
+      self.inside = False
+      self.enabled = True
       self.callBack = callBack
       self.tooltip = tooltip
       self.scrollH = 0
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
-      if not enabled :
-         self.inside = 0
 
    def setValue(self, value) :
       self.value = value.split("\n")
@@ -471,181 +613,56 @@ class CursesTextBox(CursesWidget) :
       return string.join(self.value, "\n")
 
    def draw(self, drawable, x, y) :
-      attr = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
-      drawable.addstr(y, x, self.label, attr)
-      drawable.subwin(self.height-1, self.width, y+1, x).border()
-      i = self.first
+      attrtitle = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, currentColor)
+      attrtext = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor)
+      drawable.addstr(y, x, self.label, attrtitle)
+      w = drawable.subwin(self.height-1, self.width, y+1, x)
+      w.clear()
+      w.border()
+      f = self.first
       pc = (self.first+0.0)/len(self.value)
-      pch = pc * (self.height-3)
-      drawable.addstr(y+int(pch)+2, x+self.width-1, "*")
+      drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
       ypos = y+2
-      for item in self.value[i:i+self.height-3] :
+      for item in self.value[f:f+self.height-3] :
          cropItem = item[self.scrollH:self.width-2+self.scrollH].ljust(self.width-2)
-         drawable.addstr(ypos, x+1, cropItem, attr)
-         i = i + 1
+         drawable.addstr(ypos, x+1, cropItem, attrtext)
+         f = f + 1
          ypos = ypos + 1
 
+   # DONE
    def processKey(self, key) :
       if self.inside :
          f = self.first
-         if key == 10 :
-            self.inside = 0
+         if key == keys.TAB :
+            self.inside = False
             if self.callBack != None :
                self.callBack()
-         elif key == 27 :
-	    self.inside = 0
-	    self.value = self.oldvalue
-	    return -2
+            return actions.NEXT
          elif key == curses.KEY_UP :
             f = f - 1
-            if f == -1 :
-               f = 0
          elif key == curses.KEY_DOWN :
             f = f + 1
-            if f == len(self.value) :
-               f = len(self.value) - 1
+         elif key == curses.KEY_PPAGE :
+            f = f - (self.height - 3)
+         elif key == curses.KEY_NPAGE :
+            f = f + (self.height - 3)
          elif key == curses.KEY_RIGHT:
             self.scrollH = self.scrollH + 10
-            return -2
+            return actions.HANDLED
          elif key == curses.KEY_LEFT:
             if self.scrollH > 0:
                self.scrollH = self.scrollH - 10
-            return -2
+            return actions.HANDLED
+         if f < 0 :
+            f = 0
+         if f >= len(self.value) :
+            f = len(self.value) - 1
          self.first = f
       else :
-         if key == 10 and self.enabled :
-            self.oldvalue = self.value
-            self.inside = 1
-         elif key == curses.KEY_UP :
-            return -1
-         elif key == curses.KEY_DOWN or key == 9 :
-            return 1
-      return 0
-
-
-class CursesCheckList(CursesWidget) :
-
-   def __init__(self, label, items, defaultValue, callBack, tooltip) :
-      if len(items) < 5 :
-         self.height = len(items)+1
-         self.isCompact = 1
-      else :
-         self.height = 8
-         self.isCompact = 0
-      #detsch
-      self.width = maxX - 10
-      self.first = 0
-      self.items = items
-      self.value = defaultValue
-      self.oldvalue = defaultValue
-      self.current = 0
-      self.inside = 0
-      self.enabled = 1
-      self.label = label
-      self.callBack = callBack
-      self.tooltip = tooltip
-      self.scrollH = 0
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
-      if not enabled :
-         self.inside = 0
-
-   #detsch
-   def setValue(self, valueTuple) :
-      self.items = valueTuple[0][:]
-      self.value = map(lambda item : item in valueTuple[1], self.items)
-      
-
-   def getValue(self):
-      result = []
-      for (value, item) in zip(self.value, self.items) :
-         if value == 1 :
-            result.append(item)
-      #detsch ([:] para copiar a lista, e nao passar a referencia)
-      return (self.items[:], result)
-
-   def draw(self, drawable, x, y) :
-      attrdefault = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
-      drawable.addstr(y, x, self.label, attrdefault)
-      attrlist = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor)
-      attritem = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor + curses.A_STANDOUT, widgetColor + curses.A_STANDOUT + curses.A_BOLD)
-
-      curr = self.current
-      i = self.first
-      if self.isCompact :
-         ypos = y+1
-         xpos = x
-      else :
-         w = drawable.subwin(self.height-1, self.width, y+1, x)
-         w.attrset(attrdefault)
-         w.border()
-         drawable.addstr(int(y+(((curr+0.0)/len(self.items))*(self.height-3))+2), x+self.width-1, "*", attrdefault)
-         ypos = y+2
-         xpos = x+1
-      currItem = self.items[curr]
-      for (item, value) in zip(self.items[i:i+(self.height-3)], self.value[i:i+(self.height-3)]) :
-         cropItem = item[self.scrollH:self.width-6+self.scrollH].ljust(self.width-6)
-         if item == currItem :
-            at = attritem
-         else :
-            at = attrlist
-         if value == 1:
-            drawable.addstr(ypos, xpos, "[x] " + cropItem, at)
-         else :
-            drawable.addstr(ypos, xpos, "[ ] " + cropItem, at)
-         ypos = ypos + 1
-
-   def processKey(self, key) :
-      if self.inside :
-         c = self.current
-         if key == 10 :
-            self.inside = 0
-            if self.callBack != None :
-               self.callBack()
-         if key == 27 :
-	     self.inside = 0
-	     self.value = self.oldvalue
-	     return -2
-         if key == 32 :
-            if self.value[c] == 0 :
-               self.value[c] = 1
-            else :
-               self.value[c] = 0
-            #detsch
-            if self.callBack != None :
-               self.callBack()
-
-         elif key == curses.KEY_UP :
-            c = c - 1
-            if c == -1 :
-               c = 0
-            self.current = c
-         elif key == curses.KEY_DOWN :
-            c = c + 1
-            if c == len(self.items) :
-               c = len(self.items) - 1
-            self.current = c
-         elif key == curses.KEY_RIGHT:
-            self.scrollH = self.scrollH + 10
-            return -2
-         elif key == curses.KEY_LEFT:
-            if self.scrollH > 0:
-               self.scrollH = self.scrollH - 10
-            return -2
-         if not self.isCompact :
-            if c < self.first :
-               self.first = c
-            if c >= self.first+(self.height-3) :
-               self.first = c-((self.height-3)-1)
-      else :
-         if key == 10 and self.enabled :
-            self.oldvalue = self.value[:]
-            self.inside = 1
-         elif key == curses.KEY_UP :
-            return -1
-         elif key == curses.KEY_DOWN or key == 9 :
-            return 1
+         if key == keys.ENTER and self.enabled :
+            self.inside = True
+         elif key == keys.TAB :
+            return actions.NEXT
       return 0
 
 class CursesBoolean(CursesWidget) :
@@ -653,13 +670,11 @@ class CursesBoolean(CursesWidget) :
    def __init__(self, label, value, callBack, tooltip) :
       self.callBack = callBack
       self.height = 1
+      self.inside = False
       self.label = label
       self.value = value
-      self.enabled = 1
+      self.enabled = True
       self.tooltip = tooltip
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
 
    def setValue(self, value) :
       self.value = value
@@ -668,39 +683,40 @@ class CursesBoolean(CursesWidget) :
       return self.value
 
    def draw(self, drawable, x, y) :
-      attr = self.makeAttr(0, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
+      attr = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, currentColor)
       if self.value == 1 :
          drawable.addstr(y, x, "[x] " + self.label, attr)
       else :
          drawable.addstr(y, x, "[ ] " + self.label, attr)
 
+   # DONE
    def processKey(self, key) :
-      if ( key == 10 or key == 32 ) and self.enabled :
+      if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
          if self.value == 0 :
             self.value = 1
          else :
             self.value = 0
          if self.callBack != None :
             self.callBack()
+         return actions.HANDLED
+      elif key == curses.KEY_LEFT or key == curses.KEY_RIGHT :
+         return actions.FOCUS_ON_BUTTONS
       elif key == curses.KEY_UP :
-         return -1
-      elif key == curses.KEY_DOWN or key == 9 :
-         return 1
-      return 0
+         return actions.PREV
+      elif key == curses.KEY_DOWN or key == keys.TAB :
+         return actions.NEXT
+      return actions.PASSTHROUGH
 
 class CursesButton(CursesWidget) :
 
    def __init__(self, label, value, callBack, tooltip) :
-      self.height = 3
+      self.height = 1
+      self.inside = False
       self.label = label
       self.value = value
-      self.oldvalue = value
-      self.enabled = 1
+      self.enabled = True
       self.callBack = callBack
       self.tooltip = tooltip
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
 
    def setValue(self, value) :
       self.value = value
@@ -709,21 +725,20 @@ class CursesButton(CursesWidget) :
       return self.value
 
    def draw(self, drawable, x, y) :
-      attr = self.makeAttr(0, self.enabled, buttonColor, buttonColor)
-      area = drawable.subwin(3, len(self.label)+4, y, x)
-      area.bkgd(" ",buttonColor)
-      area.border()
-      drawable.addstr(y+1, x+2, self.label, attr)
+      drawButton(drawable, x+1, y, " "+self.label+" ", self.inside)
 
+   # DONE
    def processKey(self, key) :
-      if ( key == 10 or key == 32 ) and self.enabled :
+      if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
          if self.callBack != None :
             self.callBack()
+      elif key == curses.KEY_LEFT or key == curses.KEY_RIGHT :
+         return actions.FOCUS_ON_BUTTONS
+      elif key == keys.TAB or key == curses.KEY_DOWN :
+         return actions.NEXT
       elif key == curses.KEY_UP :
-         return -1
-      elif key == curses.KEY_DOWN or key == 9 :
-         return 1
-      return 0
+         return actions.PREV
+      return actions.PASSTHROUGH
 
 class CursesEntry(CursesWidget) :
 
@@ -732,16 +747,11 @@ class CursesEntry(CursesWidget) :
       self.width = maxX - 10 - len(label)
       self.label = label
       self.value = value
-      self.inside = 0
+      self.inside = False
       self.cursor = len(value)
-      self.enabled = 1
+      self.enabled = True
       self.callBack = callBack
       self.tooltip = tooltip
-
-   def setEnabled(self, enabled) :
-      self.enabled = enabled
-      if not enabled :
-         self.inside = 0
 
    def setValue(self, value) :
       self.value = value
@@ -751,13 +761,13 @@ class CursesEntry(CursesWidget) :
       return self.value
 
    def draw(self, drawable, x, y) :
-      attr = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
+      attr = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, currentColor)
       field = self.value[:self.width].ljust(self.width)
       cur = self.cursor
       label = self.label + " ["
       drawable.addstr(y, x, label, attr)
       drawable.addstr(y, x+len(label)+len(field), "]", attr)
-      attr = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor, widgetColor + curses.A_STANDOUT + curses.A_BOLD)
+      attr = self.makeAttr(self.inside, self.enabled, widgetDisabledColor, widgetColor)
       if self.inside:
          left = field[:cur]
          mid = field[cur:cur+1]
@@ -768,47 +778,42 @@ class CursesEntry(CursesWidget) :
       else:
          drawable.addstr(y, x+len(label), field, attr)
 
+   # DONE
    def processKey(self, key) :
-      if self.inside :
-         if key == 10 :
-            self.inside = 0
-            if self.callBack != None :
-               self.callBack()
-         elif key == 27 :
-            self.value = self.oldvalue
-            self.cursor = len(self.value)
-            self.inside = 0
-            return -2
-         elif (key >= 32 and key <= 126) or (key >= 128 and key <= 255) :
-            cur = self.cursor
-            self.value = self.value[:cur] + chr(key) + self.value[cur:]
+      if key == curses.KEY_UP :
+         if self.callBack != None :
+            self.callBack()
+         return actions.PREV
+      elif key == curses.KEY_DOWN or key == keys.TAB or key == curses.KEY_ENTER :
+         if self.callBack != None :
+            self.callBack()
+         return actions.NEXT
+      elif (key >= keys.SPACE and key <= 126) or (key >= 128 and key <= 255) :
+         cur = self.cursor
+         self.value = self.value[:cur] + chr(key) + self.value[cur:]
+         self.cursor = cur + 1
+         return actions.HANDLED
+      elif key == 127 or key == 263:
+         cur = self.cursor
+         if cur > 0 :
+            self.value = self.value[:cur-1] + self.value[cur:]
+            self.cursor = cur - 1
+         return actions.HANDLED
+      elif key == 330 :
+         cur = self.cursor
+         self.value = self.value[:cur] + self.value[cur+1:]
+         return actions.HANDLED
+      elif key == curses.KEY_LEFT :
+         cur = self.cursor
+         if cur > 0 :
+            self.cursor = cur - 1
+         return actions.HANDLED
+      elif key == curses.KEY_RIGHT :
+         cur = self.cursor
+         if cur < len(self.value) :
             self.cursor = cur + 1
-         elif key == 127 or key == 263:
-            cur = self.cursor
-            if cur > 0 :
-               self.value = self.value[:cur-1] + self.value[cur:]
-               self.cursor = cur - 1
-         elif key == 330 :
-            cur = self.cursor
-            self.value = self.value[:cur] + self.value[cur+1:]
-         elif key == curses.KEY_LEFT :
-            cur = self.cursor
-            if cur > 0 :
-               self.cursor = cur - 1
-         elif key == curses.KEY_RIGHT :
-            cur = self.cursor
-            if cur < len(self.value) :
-               self.cursor = cur + 1
-         return 2
-      else :
-         if key == 10 and self.enabled :
-            self.oldvalue = self.value
-            self.inside = 1
-         elif key == curses.KEY_UP :
-            return -1
-         elif key == curses.KEY_DOWN or key == 9 :
-            return 1
-      return 0
+         return actions.HANDLED
+      return actions.PASSTHROUGH
 
 class CursesPassword(CursesEntry) :
 
@@ -834,22 +839,33 @@ class AbsCursesScreen(AbsScreen) :
       self.title = title
       self.nextCB = None
 
+   def setFocus(self, idx) :
+      self.focus = idx
+      if idx != -1 :
+         self.focusWidgets[self.focus].inside = True
+
    def draw(self) :
-      self.pad.clear()
-      self.pad.addstr(0, 0, self.title, curses.color_pair(3) + curses.A_BOLD)
+      # self.pad.clear()
+      self.pad.addstr(0, 0, self.title, titleColor)
       at = 2
       focusAt = 2
       focusHeight = 0
-      if self.focus > -1 :
+      if self.focus > -1 and self.focus < len(self.focusWidgets) :
          focused = self.focusWidgets[self.focus]
       else :
          focused = None
       vscroll = self.vscroll
       for widget in self.widgets :
          if widget == focused :
-            self.pad.addstr(at, 1, ">", titleColor + curses.A_BOLD)
+            self.pad.addstr(at, 1, ">", titleColor)
             focusAt = at
             focusHeight = widget.getHeight()
+         else :
+            self.pad.addstr(at, 1, " ", titleColor)
+            if self.focus == len(self.focusWidgets) :
+               focusAt = at
+               focusHeight = widget.getHeight()
+               
          widget.draw(self.pad, 3, at)
          at = at + widget.getHeight() + 1
       padheight = maxY - 5
@@ -861,43 +877,41 @@ class AbsCursesScreen(AbsScreen) :
          if vscroll == 2 :
             vscroll = 0
          self.vscroll = vscroll
-      drawBar = 0
-      drawBarUp = disabledColor
-      drawBarDown = disabledColor
-      if vscroll > 2 :
-         drawBar = 1
-         drawBarUp = buttonColor
-      if at - 1 > vscroll + padheight :
-         drawBar = 1
-         drawBarDown = buttonColor
-      if drawBar :
-         x = maxX - 3
-         barHeight = (vscroll + padheight - 1) - (vscroll+1)
-         for y in range(vscroll+1, vscroll + padheight - 1) :
-            self.pad.addstr(y, x, " ", widgetColor)
-         self.pad.addstr( vscroll + 1 + int(((focusAt+0.0)/(at-1)) * (barHeight-1)), maxX - 3, " ", buttonColor )
-         self.pad.addstr(vscroll, x, "^", drawBarUp)
-         self.pad.addstr(vscroll + padheight - 1 , x, "v", drawBarDown)
+      if (at - 2) > padheight :
+         drawScrollBar(self.pad, maxX - 3, vscroll, padheight, ((focusAt-2)+0.0)/(at-2))
 
       self.pad.refresh(vscroll, 0, 1, 1, padheight, maxX-2)
       if focused :
          stdscr.addstr(maxY - 1, 0, focused.getTooltip().ljust(maxX)[:maxX-1], widgetColor)
 
+   # DONE
    def processKey(self, key) :
       if self.focus == -1 :
          return
-      cmd = self.focusWidgets[self.focus].processKey(key)
-      if cmd == -1 :
-         self.focus = self.focus - 1
-         if self.focus == -1 :
-            self.focus = len(self.focusWidgets) - 1
-      elif cmd == 1 :
-         self.focus = self.focus + 1
-         if self.focus == len(self.focusWidgets) :
-            self.focus = 0
-      elif cmd == 0 :
-         return 0
-      return 1
+      widget = self.focusWidgets[self.focus]
+      motion = widget.processKey(key)
+      if motion == actions.PASSTHROUGH or motion == actions.HANDLED :
+         return motion
+      elif motion == motion == actions.FOCUS_ON_BUTTONS :
+         self.focus = len(self.focusWidgets)
+         return motion
+      assert motion == actions.PREV or motion == actions.NEXT, "Motion is " + str(motion)
+      if motion == actions.PREV :
+         delta = -1
+      elif motion == actions.NEXT :
+         delta = 1
+      # Loop to skip disabled widgets:
+      firstFocus = self.focus
+      while 1 :
+         widget.inside = False
+         self.focus = self.focus + delta
+         if self.focus == -1 or self.focus == len(self.focusWidgets) :
+            return actions.FOCUS_ON_BUTTONS
+         widget = self.focusWidgets[self.focus]
+         widget.inside = True
+         if self.focus == firstFocus or self.focusWidgets[self.focus].enabled :
+            break
+      return actions.HANDLED
 
    def __registerField(self, name, widget) :
       self.fields[name] = widget
@@ -906,11 +920,12 @@ class AbsCursesScreen(AbsScreen) :
       self.focusWidgets.append(widget)
       if self.focus == -1 :
          self.focus = 0
+         widget.inside = True
 
    def setTitle(self, title) :
       self.title = title
 
-   def __addWidget(self, fieldName, w = None, focus = 1):
+   def __addWidget(self, fieldName, w = None, focus = True):
       if fieldName :
          self.__registerField(fieldName, w)
       if focus :
@@ -919,9 +934,8 @@ class AbsCursesScreen(AbsScreen) :
 
    def addLabel(self, fieldName, label, defaultValue = '', tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
       w = CursesLabel(label)
-      self.__addWidget(fieldName, w, 0)
+      self.__addWidget(fieldName, w, False)
 
-   #detsch
    def addList(self, fieldName, label, defaultValueTuple = ([],''), tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
       w = CursesList(label, defaultValueTuple[0], defaultValueTuple[1], callBack, tooltip)
       self.__addWidget(fieldName, w)
@@ -967,19 +981,21 @@ global defaultColor, disabledColor, titleColor, buttonColor, widgetColor
 stdscr=curses.initscr()
 global maxX, maxY
 (maxY, maxX) = stdscr.getmaxyx()
-maxX=min(maxX,79)
-maxY=min(maxY,24)
+#maxX=min(maxX,79)
+#maxY=min(maxY,24)
 curses.start_color()
 setColor(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
 setColor(2, curses.COLOR_BLACK, curses.COLOR_BLUE)
 setColor(3, curses.COLOR_YELLOW, curses.COLOR_BLUE)
 setColor(4, curses.COLOR_BLACK, curses.COLOR_WHITE)
 setColor(5, curses.COLOR_BLACK, curses.COLOR_CYAN)
+setColor(6, curses.COLOR_CYAN, curses.COLOR_BLUE)
 defaultColor = curses.color_pair(1)
 disabledColor = curses.color_pair(2) + curses.A_BOLD
-titleColor = curses.color_pair(3)
+titleColor = curses.color_pair(3) + curses.A_BOLD
 buttonColor = curses.color_pair(4)
 widgetColor = curses.color_pair(5)
 widgetDisabledColor = curses.color_pair(5) + curses.A_BOLD
+currentColor = curses.color_pair(6) + curses.A_BOLD
 
 stdscr.bkgd(" ",curses.color_pair(1))
