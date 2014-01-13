@@ -1,7 +1,7 @@
 # -*- encoding iso-8859-1 -*-
 #!/usr/bin/python
 
-import curses, curses.textpad, traceback, string, time
+import curses, curses.textpad, traceback, string, time, textwrap
 from wizard import *
 
 class keys :
@@ -48,6 +48,12 @@ def drawButton(drawable, x, y, buttonText, focus, hidden=False) :
 
 def hideCursor() :
    stdscr.move(maxY-1,maxX-1)
+
+def center(width, data) :
+   if type(data) == type("string") :
+      return (width / 2) - (len(data) / 2)
+   else :
+      return (width / 2) - (data / 2)
 
 def debug(s):
    stdscr.addstr(0, 0, str(s))
@@ -103,30 +109,43 @@ class AbsCursesWizard(AbsWizard) :
       stdscr.refresh()
 
    def showMessageBox(self, message, options=["Ok", "Cancel"], default=0) :
-      area = stdscr.subwin(8, maxX-10, maxY/2-4, 5)
+      x = 3
+      y = maxY/2-4
+      height = 9
+      width = maxX - 6
+      area = stdscr.subwin(height, width, y, x)
+      area.attrset(widgetColor)
       area.clear()
       area.box()
       area.keypad(1)
-      subarea = stdscr.subwin(5, maxX-15, maxY/2-3, 7)
+      subwidth = width - 2
+      subarea = stdscr.subwin(height-2, subwidth, y + 1, x + 1)
       subarea.idlok(1)
       subarea.scrollok(1)
-      subarea.addstr(0, 1, message, titleColor)
+      if len(message) < subwidth :
+         subarea.addstr(1, center(subwidth, message), message, titleColor)
+      else :
+         lines = textwrap.wrap(message, subwidth - 2)
+         i = 1
+         for line in lines: 
+            subarea.addstr(i, center(subwidth, line), line, titleColor)
+            i = i + 1
       k = 0
       sel = default
       global forceRedraw
       while ( k != keys.ENTER and k != keys.SPACE ) :
-         l = 0
+         l = center(width, sum(map(lambda x : len(x) + 6, options)))
          for i in range(len(options)) :
             drawButton(area, 3 + l, 6, " "+options[i]+" ", i == sel)
             l = l + len(options[i]) + 4
          area.refresh()
          hideCursor()
          k = stdscr.getch()
-         if k == curses.KEY_RIGHT or k == keys.TAB :
+         if k == curses.KEY_RIGHT or k == keys.TAB or k == curses.KEY_DOWN :
             sel = sel + 1
             if sel == len(options) :
                sel = 0
-         elif k == curses.KEY_LEFT :
+         elif k == curses.KEY_LEFT or k == curses.KEY_UP :
             sel = sel - 1
             if sel == - 1 :
                sel = len(options) - 1
@@ -177,13 +196,13 @@ class AbsCursesWizard(AbsWizard) :
                      lastActive = len(screen.focusWidgets) - 1
                      while screen.focusWidgets[lastActive].enabled == False :
                         lastActive = lastActive - 1
-                     screen.setFocus(lastActive)
+                     screen.setFocus(lastActive, -1)
                      break
                   else :
                      currButton = currButton - 1
                elif bk == curses.KEY_RIGHT or bk == keys.TAB or bk == curses.KEY_DOWN :
                   if currButton == buttons.LAST :
-                     screen.setFocus(0)
+                     screen.setFocus(0, 1)
                      break
                   else :
                      currButton = currButton + 1
@@ -381,7 +400,6 @@ class CursesAbstractList(CursesWidget):
             drawable.addstr(ypos, xpos, self.off + " " + cropItem, at)
          ypos = ypos + 1
 
-   # DONE
    def processKey(self, key) :
       c = self.current
       if key == keys.TAB :
@@ -502,6 +520,7 @@ class CursesCheckList(CursesAbstractList) :
       else :
          self.value[i] = 0
 
+# TODO this has not been ported to the new drawing/motion model
 class CursesDropList(CursesWidget) :
 
    def __init__(self, label, items, defaultValue, callBack, tooltip) :
@@ -629,7 +648,6 @@ class CursesTextBox(CursesWidget) :
          f = f + 1
          ypos = ypos + 1
 
-   # DONE
    def processKey(self, key) :
       if self.inside :
          f = self.first
@@ -689,7 +707,6 @@ class CursesBoolean(CursesWidget) :
       else :
          drawable.addstr(y, x, "[ ] " + self.label, attr)
 
-   # DONE
    def processKey(self, key) :
       if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
          if self.value == 0 :
@@ -727,7 +744,6 @@ class CursesButton(CursesWidget) :
    def draw(self, drawable, x, y) :
       drawButton(drawable, x+1, y, " "+self.label+" ", self.inside)
 
-   # DONE
    def processKey(self, key) :
       if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
          if self.callBack != None :
@@ -778,7 +794,6 @@ class CursesEntry(CursesWidget) :
       else:
          drawable.addstr(y, x+len(label), field, attr)
 
-   # DONE
    def processKey(self, key) :
       if key == curses.KEY_UP :
          if self.callBack != None :
@@ -839,13 +854,35 @@ class AbsCursesScreen(AbsScreen) :
       self.title = title
       self.nextCB = None
 
-   def setFocus(self, idx) :
+   def __setupFocusAndCurrent(self, delta) :
+      widget = self.focusWidgets[self.focus]
+      widget.inside = True
+      if hasattr(widget, "items") :
+         if delta == 1 :
+            widget.current = 0
+         else :
+            widget.current = len(widget.items) - 1
+      return widget
+
+   def __moveFocusSkippingDisabled(self, delta) :
+      widget = self.focusWidgets[self.focus]
+      while 1 :
+         widget.inside = False
+         self.focus = self.focus + delta
+         if self.focus == -1 or self.focus == len(self.focusWidgets) :
+            return actions.FOCUS_ON_BUTTONS
+         widget = self.__setupFocusAndCurrent(delta)
+         if self.focusWidgets[self.focus].enabled :
+            return actions.HANDLED
+
+   def setFocus(self, idx, delta=1) :
       self.focus = idx
       if idx != -1 :
-         self.focusWidgets[self.focus].inside = True
+         if not self.focusWidgets[self.focus].enabled :
+            return self.__moveFocusSkippingDisabled(delta)
+         self.__setupFocusAndCurrent(delta)
 
    def draw(self) :
-      # self.pad.clear()
       self.pad.addstr(0, 0, self.title, titleColor)
       at = 2
       focusAt = 2
@@ -884,7 +921,6 @@ class AbsCursesScreen(AbsScreen) :
       if focused :
          stdscr.addstr(maxY - 1, 0, focused.getTooltip().ljust(maxX)[:maxX-1], widgetColor)
 
-   # DONE
    def processKey(self, key) :
       if self.focus == -1 :
          return
@@ -900,18 +936,7 @@ class AbsCursesScreen(AbsScreen) :
          delta = -1
       elif motion == actions.NEXT :
          delta = 1
-      # Loop to skip disabled widgets:
-      firstFocus = self.focus
-      while 1 :
-         widget.inside = False
-         self.focus = self.focus + delta
-         if self.focus == -1 or self.focus == len(self.focusWidgets) :
-            return actions.FOCUS_ON_BUTTONS
-         widget = self.focusWidgets[self.focus]
-         widget.inside = True
-         if self.focus == firstFocus or self.focusWidgets[self.focus].enabled :
-            break
-      return actions.HANDLED
+      return self.__moveFocusSkippingDisabled(delta)
 
    def __registerField(self, name, widget) :
       self.fields[name] = widget
@@ -960,7 +985,6 @@ class AbsCursesScreen(AbsScreen) :
       w = CursesTextBox(label, defaultValue, callBack, tooltip)
       self.__addWidget(fieldName, w)
 
-   #detsch
    def addCheckList(self, fieldName, label, defaultValueTuple = ([],[]), tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
       defaultChecks = map(lambda item : item in defaultValueTuple[1], defaultValueTuple[0])
       w = CursesCheckList(label, defaultValueTuple[0], defaultChecks, callBack, tooltip)
