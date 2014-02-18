@@ -1,7 +1,7 @@
 # -*- encoding iso-8859-1 -*-
 #!/usr/bin/python
 
-import curses, curses.textpad, traceback, string, time, textwrap
+import curses, curses.textpad, traceback, string, time, textwrap, threading
 from wizard import *
 
 class keys :
@@ -109,34 +109,41 @@ class AbsCursesWizard(AbsWizard) :
       stdscr.refresh()
 
    def showMessageBox(self, message, options=["Ok", "Cancel"], default=0) :
+      global spinner
+      if spinner != None:
+         spinner.stop()
       x = 3
       y = maxY/2-4
-      height = 9
       width = maxX - 6
+      subwidth = width - 2
+      message = message.replace("\n", " ")
+      if len(message) < subwidth :
+         lines = [ message ]
+      else :
+         lines = textwrap.wrap(message, subwidth - 2)
+
+      height = 6 + len(lines)
       area = stdscr.subwin(height, width, y, x)
       area.attrset(widgetColor)
       area.clear()
       area.box()
       area.keypad(1)
-      subwidth = width - 2
       subarea = stdscr.subwin(height-2, subwidth, y + 1, x + 1)
       subarea.idlok(1)
       subarea.scrollok(1)
-      if len(message) < subwidth :
-         subarea.addstr(1, center(subwidth, message), message, titleColor)
-      else :
-         lines = textwrap.wrap(message, subwidth - 2)
-         i = 1
-         for line in lines: 
-            subarea.addstr(i, center(subwidth, line), line, titleColor)
-            i = i + 1
+
+      i = 1
+      for line in lines: 
+         subarea.addstr(i, center(subwidth, line), line, titleColor)
+         i = i + 1
+
       k = 0
       sel = default
       global forceRedraw
       while ( k != keys.ENTER and k != keys.SPACE ) :
          l = center(width, sum(map(lambda x : len(x) + 6, options)))
          for i in range(len(options)) :
-            drawButton(area, 3 + l, 6, " "+options[i]+" ", i == sel)
+            drawButton(area, 3 + l, height - 3, " "+options[i]+" ", i == sel)
             l = l + len(options[i]) + 4
          area.refresh()
          hideCursor()
@@ -278,6 +285,25 @@ class AbsCursesWizard(AbsWizard) :
    def removeScreen(self, screen) :
       self.screens.remove(screen)
 
+class Spinner(threading.Thread) :
+   def __init__(self):
+      threading.Thread.__init__(self)
+      self.stopped = False
+   
+   def stop(self):
+      self.stopped = True
+   
+   def run(self):
+      spin = ['-','\\','|','/']
+      step = 0
+      while not self.stopped:
+         stdscr.addstr(maxY/2, maxX/2, "("+spin[step]+")")
+         stdscr.refresh()
+         step = step + 1
+         if step == len(spin):
+            step = 0
+         time.sleep(0.1)
+
 class CursesWidget :
 
    def __init__() :
@@ -301,6 +327,17 @@ class CursesWidget :
 
    def draw(self, drawable, x, y) :
       pass
+
+   def runCallback(self):
+      global forceRedraw
+      global spinner
+      if self.callBack != None :
+         spinner = Spinner()
+         spinner.start()
+         self.callBack()
+         forceRedraw = True
+         spinner.stop()
+         spinner = None
 
    def makeAttr(self, inside, enabled, off, on, usein=None) :
       if not enabled :
@@ -406,8 +443,7 @@ class CursesAbstractList(CursesWidget):
          return actions.NEXT
       if key == keys.SPACE or key == keys.ENTER :
          self.set(c)
-         if self.callBack != None :
-            self.callBack()
+         self.runCallback()
          return actions.HANDLED
       elif (key >= ord('a') and key <= ord('z')) or (key >= ord('A') and key <= ord('Z')):
          for i in range(len(self.items)) :
@@ -509,107 +545,19 @@ class CursesCheckList(CursesAbstractList) :
    def getValue(self):
       result = []
       for (value, item) in zip(self.value, self.items) :
-         if value == 1 :
+         if value == True :
             result.append(item)
       #detsch ([:] to copy the list, instead of passing a reference)
       return (self.items[:], result)
 
+   def isSet(self, i):
+      return self.value[i]
+
    def set(self, i) :
-      if self.value[i] == 0 :
-         self.value[i] = 1
+      if self.value[i] == False :
+         self.value[i] = True
       else :
-         self.value[i] = 0
-
-# TODO this has not been ported to the new drawing/motion model
-class CursesDropList(CursesWidget) :
-
-   def __init__(self, label, items, defaultValue, callBack, tooltip) :
-      self.height = 1
-      self.width = maxX - 10
-      self.first = 0
-      self.items = items
-      self.value = 0
-      self.maxitemlength = len(items[0])
-      for i in range(len(items)) :
-         if items[i] == defaultValue :
-            self.value = i
-            self.maxitemlength = max(self.maxitemlength,len(self.items[i]))
-      self.inside = False
-      self.enabled = True
-      self.label = label
-      self.callBack = callBack
-      self.tooltip = tooltip
-      self.scrollH = 0
-
-   def setValue(self, value) :
-      v = self.value
-      try :
-         self.value = self.items.find(value)
-      except :
-         self.value = v
-
-   def getValue(self) :
-      if len(self.items) > self.value:
-         return self.items[self.value]
-      else :
-         return self.items[0]
-
-   def draw(self, drawable, x, y) :
-      attr = self.makeAttr(self.inside, self.enabled, disabledColor, defaultColor, defaultColor + curses.A_BOLD)
-      drawable.addstr(y, x, '%s :'%self.label, attr)
-      pos = x+len(self.label)+3
-      drawable.addstr(y, pos, self.items[self.value], attr)
-      self.x = x
-      self.y = y
-
-   def processKey(self, key) :
-      global forceRedraw
-      if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
-         areaX = min(maxX-6-self.maxitemlength,self.x+len(self.label)+3)
-         areaY = max(6,self.y-(min(8,len(self.items)+2)/2)+1)
-         areaHeight = min(8,len(self.items))
-         areaWidth = min(maxX-14,self.maxitemlength)
-         area = stdscr.subwin(areaHeight+2, areaWidth+4, areaY, areaX)
-         area.clear()
-         area.box()
-         area.keypad(1)
-         k = 0
-         sel = self.value
-         while True :
-            offset = 0
-            if len(self.items) > areaHeight :
-               offset = sel - (areaHeight / 2)
-            for i in range(min(len(self.items),areaHeight)) :
-               if i+offset == sel :
-                  attr = widgetColor
-               else :
-                  attr = buttonColor
-               area.addstr(i+1, 1, self.items[offset+i], attr)
-               for j in range(self.maxitemlength-len(self.items[offset+i])) :
-                  area.addstr(i+1,len(self.items[offset+i])+j+1,' ', attr)
-            area.refresh()
-            k = area.getch()
-            if k == curses.KEY_UP :
-               sel = sel - 1
-               if sel == - 1 :
-                  sel = len(self.items) - 1
-            elif k == curses.KEY_DOWN :
-               sel = sel + 1
-               if sel == len(self.items):
-                  sel = 0
-            elif k == keys.ESC :
-               forceRedraw = True
-               return actions.HANDLED
-            elif ( k == keys.ENTER or k == keys.SPACE ) :
-               self.value = sel
-               if self.callBack != None :
-                  self.callBack()
-               break
-         forceRedraw = True
-         return 0 
-      elif key == keys.TAB :
-         return actions.NEXT
-      return 0
+         self.value[i] = False
 
 class CursesTextBox(CursesWidget) :
 
@@ -653,8 +601,7 @@ class CursesTextBox(CursesWidget) :
          f = self.first
          if key == keys.TAB :
             self.inside = False
-            if self.callBack != None :
-               self.callBack()
+            self.runCallback()
             return actions.NEXT
          elif key == curses.KEY_UP :
             f = f - 1
@@ -690,7 +637,10 @@ class CursesBoolean(CursesWidget) :
       self.height = 1
       self.inside = False
       self.label = label
-      self.value = value
+      if value == 0 or value == False:
+         self.value = False
+      else:
+         self.value = True
       self.enabled = True
       self.tooltip = tooltip
 
@@ -709,12 +659,11 @@ class CursesBoolean(CursesWidget) :
 
    def processKey(self, key) :
       if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
-         if self.value == 0 :
-            self.value = 1
+         if self.value == False :
+            self.value = True
          else :
-            self.value = 0
-         if self.callBack != None :
-            self.callBack()
+            self.value = False
+         self.runCallback()
          return actions.HANDLED
       elif key == curses.KEY_LEFT or key == curses.KEY_RIGHT :
          return actions.FOCUS_ON_BUTTONS
@@ -746,8 +695,7 @@ class CursesButton(CursesWidget) :
 
    def processKey(self, key) :
       if ( key == keys.ENTER or key == keys.SPACE ) and self.enabled :
-         if self.callBack != None :
-            self.callBack()
+         self.runCallback()
       elif key == curses.KEY_LEFT or key == curses.KEY_RIGHT :
          return actions.FOCUS_ON_BUTTONS
       elif key == keys.TAB or key == curses.KEY_DOWN :
@@ -796,12 +744,10 @@ class CursesEntry(CursesWidget) :
 
    def processKey(self, key) :
       if key == curses.KEY_UP :
-         if self.callBack != None :
-            self.callBack()
+         self.runCallback()
          return actions.PREV
       elif key == curses.KEY_DOWN or key == keys.TAB or key == curses.KEY_ENTER :
-         if self.callBack != None :
-            self.callBack()
+         self.runCallback()
          return actions.NEXT
       elif (key >= keys.SPACE and key <= 126) or (key >= 128 and key <= 255) :
          cur = self.cursor
@@ -963,10 +909,6 @@ class AbsCursesScreen(AbsScreen) :
 
    def addList(self, fieldName, label, defaultValueTuple = ([],''), tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
       w = CursesList(label, defaultValueTuple[0], defaultValueTuple[1], callBack, tooltip)
-      self.__addWidget(fieldName, w)
-
-   def addDropList(self, fieldName, label='', defaultValueTuple=([],''), tooltip='', callBack=None) :
-      w = CursesDropList(label, defaultValueTuple[0], defaultValueTuple[1], callBack, tooltip)
       self.__addWidget(fieldName, w)
 
    def addBoolean(self, fieldName, label, defaultValue = 0, tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
