@@ -943,8 +943,9 @@ class AbsCursesScreen(AbsScreen) :
       self.nextCB = nextCB
 
 global stdscr
-global defaultColor, disabledColor, titleColor, buttonColor, widgetColor
-stdscr=curses.initscr()
+global defaultColor, disabledColor, titleColor, buttonColor, widgetColor, spinner
+spinner = None
+stdscr = curses.initscr()
 global maxX, maxY
 (maxY, maxX) = stdscr.getmaxyx()
 #maxX=min(maxX,79)
