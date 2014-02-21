@@ -948,7 +948,7 @@ spinner = None
 stdscr = curses.initscr()
 global maxX, maxY
 (maxY, maxX) = stdscr.getmaxyx()
-#maxX=min(maxX,79)
+maxX=min(maxX,127)
 #maxY=min(maxY,24)
 curses.start_color()
 setColor(1, curses.COLOR_WHITE, curses.COLOR_BLUE)
