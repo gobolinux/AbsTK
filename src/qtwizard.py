@@ -1,10 +1,7 @@
 from wizard import *
-#from PyQt4 import *
 import sys
-#from qttable import *
 from PyQt4 import QtCore
 from PyQt4 import QtGui
-from PyQt4 import Qt3Support
 
 class NewQWizard(QtGui.QWizard):
 	def __init__(self, qabswizard):
@@ -33,7 +30,7 @@ class AbsQtWizard(AbsWizard):
 		self.qwizard = NewQWizard(self)
 		self.qwizard.setWindowTitle(name)
 		self.lastScreen = None
-		self.qwizard.setGeometry(QtCore.QRect(50, 50, 480, 400))
+		self.qwizard.setGeometry(QtCore.QRect(50, 50, 600, 600))
 		self.messageBoxPending = 0
 
 	def showMessageBox(self, message, buttons = ['Ok', 'Cancel']):
@@ -120,6 +117,8 @@ class AbsQtScreen(AbsScreen):
 		self.setTitle(title)
 		self.fieldsTypes = {}
 
+		self.widget.setTitle(title)
+
 		self.nextCB = None
 
 	def __registerField(self, name, widget, fieldType):
@@ -130,10 +129,9 @@ class AbsQtScreen(AbsScreen):
 		self.nextCB = nextCB
 
 	def addImage(self, fileName):
-		p = QPixmap()
+		p = QtGui.QPixmap()
 		p.load(fileName)
-		w = QtGui.QLabel(self.widget) #TODO
-		#w = QtGui.QLabel(self.widget,"")
+		w = QtGui.QLabel(self.widget)
 		w.setPixmap(p)
 		self.__addWidget(w)
 
@@ -145,25 +143,6 @@ class AbsQtScreen(AbsScreen):
 
 			if fieldType == 'QCheckBox':
 				field.setChecked(newValue)
-			elif fieldType == 'QListBox':
-				import types
-				if type(newValue) == types.TupleType:
-					items, defaultValue = newValue
-					field.clear()
-					for item in items:
-						field.insertItem(item)
-					try:
-						selectedIndex = items.index(defaultValue)
-					except:
-						selectedIndex = 0
-
-					field.setSelected(selectedIndex, 1)
-				else:
-					try:
-						selectedIndex = items.index(newValue)
-						field.setSelected(selectedIndex, 1)
-					except:
-						pass
 			elif fieldType == 'QButtonGroup':
 				pass
 			elif fieldType == 'QDropList':
@@ -172,26 +151,38 @@ class AbsQtScreen(AbsScreen):
 				field.setText(newValue)
 			elif fieldType == 'QLabel':
 				field.setText(newValue)
-			elif fieldType == 'QTableWidget':
+			if fieldType == 'QTableWidget' or fieldType == 'QListBox':
 				import types
+				
 				if type(newValue) == types.ListType:
-					for i in range(field.numRows()):
-						field.item(i, 0).setChecked(str(field.item(i, 0).text()) in newValue)
+					for i in range(field.rowCount()):
+						field.item(i, 0).setCheckState(str(field.item(i, 0).text()) in newValue)
+				
+				elif len(newValue) == 1:
+					defaultValue = newValue[0]
+					items = self.getValue(fieldName)[0]
+					for i in range(field.rowCount()):
+						if fieldType == 'QListBox':
+							field.item(i, 0).setSelected(str(field.item(i, 0).text()) in newValue)
+						else:
+							field.item(i, 0).setCheckState(str(field.item(i, 0).text()) in newValue)
 				else:
-					if len(newValue) == 1:
-						defaultValue = newValue[0]
-						items = self.getValue(fieldName)[0]
-						for i in range(field.numRows()):
-							field.item(i, 0).setChecked(str(field.item(i, 0).text()) in newValue)
-					else:
-						items, defaultValue = newValue
-						field.setNumRows(len(items))
-						j = 0
-						for item in items:
-							c = QCheckTableItem(field, item)
-							c.setChecked(item in defaultValue)
-							field.setItem(j, 0, c)
-							j = j + 1
+					items, defaultValue = newValue
+					field.setRowCount(len(items))
+					j = 0
+					for item in items:
+						c = QtGui.QTableWidgetItem(item)
+						if fieldType == 'QListBox':
+							c.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+							c.setSelected(item == defaultValue)
+						else:
+							#c.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+							if item in defaultValue:
+								c.setCheckState(2)
+							else:
+								c.setCheckState(0)
+						field.setItem(j, 0, c)
+						j = j + 1
 			else:
 				return 0
 			return 1
@@ -205,34 +196,45 @@ class AbsQtScreen(AbsScreen):
 
 			if fieldType == 'QCheckBox':
 				return int(field.isChecked())
-			if fieldType == 'QDropList':
+			
+			elif fieldType == 'QDropList':
 				return unicode(field.currentText())
-			elif fieldType == 'QListBox':
-				ret1 = []
-				for i in range(field.count()):
-					ret1.append(str(field.item(i).text()))
-				if field.selectedItem():
-					ret2 = str(field.selectedItem().text())
-				else:
-					ret2 = ''
-				return (ret1,ret2)
 
 			elif fieldType == 'QButtonGroup':
 				ret = []
-				for i in range(field.count()):
-					ret.append(str(field.find(i).text()))
-				return (ret, str(field.selected().text()))
+				for button in field.buttons():
+					ret.append(str(button.text()))
+				
+				checkedButton = field.checkedButton()
+				if checkedButton == None:
+					selected = ''
+				else:
+					selected = str(checkedButton.text())
+				
+				return (ret, selected)
+			
 			elif fieldType == 'QLineEdit':
 				return unicode(field.text())
-			elif fieldType == 'QTableWidget':
-				field.numRows()
+			
+			elif fieldType == 'QTableWidget' or fieldType == 'QListBox':
 				ret1 = []
-				ret2 = []
-				for i in range(field.numRows()):
-					ret1.append(str(field.text(i, 0)))
-					if field.item(i, 0).isChecked():
-						ret2.append(str(field.text(i, 0)))
+				if fieldType == 'QListBox':
+					ret2 = ''
+				else:
+					ret2 = []
+				for i in range(field.rowCount()):
+					fieldItem = field.item(i, 0)
+					if fieldItem == None:
+						continue
+					ret1.append(str(fieldItem.text()))
+					if fieldType == 'QListBox':
+						if fieldItem.isSelected():
+							ret2 = str(fieldItem.text())
+					else:
+						if fieldItem.checkState():
+							ret2.append(str(fieldItem.text()))
 				return (ret1,ret2)
+			
 			else:
 				return None
 
@@ -274,36 +276,40 @@ class AbsQtScreen(AbsScreen):
 		self.widget.setWindowTitle(title)
 
 	def addBoolean(self, fieldName, label='', defaultValue=0, toolTip='', callBack=None):
-		w = QCheckBox(self.widget, "w")
+		w = QtGui.QCheckBox(self.widget)
 		w.setText(label)
 		w.setChecked(defaultValue)
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
+		if toolTip:
+			w.setToolTip(toolTip)
 		if fieldName:
 			self.__registerField(fieldName, w, 'QCheckBox')
 		if callBack:
-			w.connect(w, SIGNAL('stateChanged(int)'), callBack)
+			w.stateChanged.connect(callBack)
+			
 		self.__addWidget(w)
 
-	def addPassword(self, fieldName,label='', defaultValue='', toolTip='', callBack=None):
-		w = QLineEdit(self.widget, "w")
+	def __addLineEditGeneric(self, fieldName, label, defaultValue, toolTip, callBack, isPasswd):
+		w = QtGui.QLineEdit(self.widget)
 		w.setText(defaultValue)
-		w.setEchoMode(QLineEdit.Password)
+		if isPasswd:
+			w.setEchoMode(QtGui.QLineEdit.Password)
 
 		if callBack:
-			w.connect(w, SIGNAL('lostFocus()'), callBack)
+			if isPasswd:
+				w.lostFocus.connect(callBack)
+			else:
+				w.textChanged.connect(callBack)
 
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
+		if toolTip:
+			w.setToolTip(toolTip)
 
 		if fieldName:
 			self.__registerField(fieldName, w, 'QLineEdit')
 
 		if label:
-			layout = QHBoxLayout(None, 0, 6, "w")
+			layout = QtGui.QHBoxLayout()
 
-			l = QtGui.QLabel(self.widget) #TODO
-			#l = QtGui.QLabel(self.widget,"w")
+			l = QtGui.QLabel(self.widget)
 			l.setText(label)
 			layout.addWidget(l)
 			layout.addWidget(w)
@@ -311,54 +317,32 @@ class AbsQtScreen(AbsScreen):
 			self.__addLayout(layout)
 		else:
 			self.__addWidget(w)
+	
+	def addPassword(self, fieldName, label='', defaultValue='', toolTip='', callBack=None):
+		self.__addLineEditGeneric(fieldName, label, defaultValue, toolTip, callBack, True)
+
 
 	def addLineEdit(self, fieldName, label='', defaultValue='', toolTip='', callBack=None):
-		w = QLineEdit(self.widget, "w")
-		w.setText(defaultValue)
-
-		if callBack:
-			#w.connect(w, SIGNAL('lostFocus()'), callBack)
-			w.connect(w, SIGNAL('textChanged( const QString & )'), callBack)
-
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
-
-		if fieldName:
-			self.__registerField(fieldName, w, 'QLineEdit')
-
-		if label:
-			layout = QtGui.QHBoxLayout(None, 0, 6, "w")
-
-			l = QtGui.QLabel(self.widget) #TODO
-			#l = QtGui.QLabel(self.widget, "w")
-			l.setText(label)
-			layout.addWidget(l)
-			layout.addWidget(w)
-
-			self.__addLayout(layout)
-		else:
-			self.__addWidget(w)
+		self.__addLineEditGeneric(fieldName, label, defaultValue, toolTip, callBack, False)
 
 
 	def addMultiLineEdit(self, fieldName='', label='', defaultValue='', toolTip='', callBack=None):
-		w = QtGui.QGroupBox("groupBox" + fieldName, self.widget)
-		#w.setColumnLayout(0, QtCore.Qt.Vertical)
+		w = QtGui.QGroupBox(self.widget)
 		w.setTitle(label)
 
-		gbLayout = QtGui.QGridLayout(w.layout())
-		gbLayout.setAlignment(QtCore.Qt.AlignTop)
+		gbLayout = QtGui.QVBoxLayout(w)
 
 		mle = QtGui.QTextEdit(w)
 		mle.setText(defaultValue)
 		mle.setReadOnly(not fieldName)
 
-		gbLayout.addWidget(mle, 0, 0)
+		gbLayout.addWidget(mle)
 
 		if callBack:
-			mle.connect(mle, SIGNAL('textChanged()'), callBack)
+			mle.textChanged.connect(callBack)
 
-		#if toolTip:
-			#QtGui.QToolTip.add(w, toolTip) #TODO
+		if toolTip:
+			w.setToolTip(toolTip)
 		if fieldName:
 			self.__registerField(fieldName, mle, 'QMultiLineEdit')
 
@@ -367,23 +351,22 @@ class AbsQtScreen(AbsScreen):
 
 
 	def addLabel(self, fieldName, label='', defaultValue='', toolTip=''):
-		#w = QtGui.QLabel(self.widget, "")
-		w = QtGui.QLabel(self.widget) #TODO
+		w = QtGui.QLabel(self.widget)
 		w.setText(label)
-		#if toolTip:
-			#QtGui.QToolTip.add(w, toolTip)
+		if toolTip:
+			w.setToolTip(toolTip)
 		if fieldName:
 			self.__registerField(fieldName, w, 'QLabel')
 		self.__addWidget(w)
 
 	def addButton(self, fieldName, label='', defaultValue='', toolTip='', callBack=None):
-		w = QPushButton(self.widget,"")
+		w = QtGui.QPushButton(self.widget)
 		w.setText(label)
-		w.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
+		w.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+		if toolTip:
+			w.setToolTip(toolTip)
 		if callBack:
-			w.connect(w, SIGNAL("released()"), callBack)
+			w.released.connect(callBack)
 
 		self.__addWidget(w)
 
@@ -398,74 +381,98 @@ class AbsQtScreen(AbsScreen):
 	def addBoxList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
 		w = QtGui.QGroupBox(self.widget)
-		#w.setColumnLayout(0, QtCore.Qt.Vertical)
 		w.setTitle(label)
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
-		gbLayout = QtGui.QGridLayout(w.layout())
-		gbLayout.setAlignment(QtCore.Qt.AlignTop)
+		
+		gridLayout = QtGui.QGridLayout(w)
+		tableView = QtGui.QTableWidget(w)
+		gridLayout.addWidget(tableView, 0, 0, 1, 1)
+		
+		tableView.verticalHeader().hide()
+		tableView.horizontalHeader().hide()
+		tableView.setShowGrid(False)
+		tableView.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+		tableView.setColumnCount(1)
+		tableView.setColumnWidth(0, 300)
+		
+		if toolTip:
+			w.setToolTip(toolTip)
 		if callBack:
-			w.connect(w, SIGNAL("highlighted (int)"), callBack)
-		lb = Qt3Support.Q3ListBox(w, "w")
+			tableView.currentCellChanged.connect(callBack)
+		
+		i = 0
+		tableView.insertColumn(0)
 		for item in items:
-			lb.insertItem(item)
+			tableView.insertRow(i)
+			widgetItem = QtGui.QTableWidgetItem(item)
+			widgetItem.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
+			tableView.setItem(i, 0, widgetItem)
+			i += 1
+			
 		try:
 			selectedIndex = items.index(defaultValue)
 		except:
 			selectedIndex = 0
-		lb.setSelected(selectedIndex, 1)
+		
+		if tableView.item(selectedIndex, 0):
+			tableView.item(selectedIndex, 0).setSelected(True)
+		
 		if fieldName:
-			self.__registerField(fieldName, lb, 'QListBox')
+			self.__registerField(fieldName, tableView, 'QListBox')
 
-		gbLayout.addWidget(lb, 0, 0)
 		self.__addWidget(w)
-		return
+
 
 	def addDropList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		w = QComboBox(self.widget,"w")
+		w = QtGui.QComboBox(self.widget)
 		w.setEditable(0)
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
+		if toolTip:
+			w.setToolTip(toolTip)
 
+		i = 0
 		for item in items :
-			w.insertItem(item)
-		if defaultValue :
-			w.setCurrentText(defaultValue)
+			w.insertItem(i, item)
+			i += 1
+		if defaultValue and defaultValue in items:
+			w.setCurrentIndex(items.index(defaultValue))
 		if fieldName :
 			self.__registerField(fieldName, w, 'QDropList')
 		if callBack :
-			w.connect(w, SIGNAL("released(int)"), callBack)
+			w.currentIndexChanged.connect(callBack)
 		self.__addWidget(w)
 
 	def addRadioList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		w = QButtonGroup(self.widget,"w")
+		
+		buttonGroup = QtGui.QButtonGroup(self.widget)
+		w = QtGui.QGroupBox(self.widget)
 		w.setTitle(label)
 		#w.setColumnLayout(0, QtCore.Qt.Vertical)
+		gridLayout = QtGui.QGridLayout(w)
+		
+		if toolTip:
+			w.setToolTip(toolTip)
 
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
-
-		bgLayout = QtGui.QGridLayout(w.layout())
-		bgLayout.setAlignment(QtCore.Qt.AlignTop)
+		#bgLayout.setAlignment(QtCore.Qt.AlignTop)
 		try:
 			selectedIndex = items.index(defaultValue)
 		except:
 			selectedIndex = 0
 		i=0
 		for item in items:
-			rb = QRadioButton(w, "w")
+			radioButton = QtGui.QRadioButton(w)
+			gridLayout.addWidget(radioButton, i, 0, 1, 1)
+			buttonGroup.addButton(radioButton)
 			if i == selectedIndex:
-				rb.setChecked(1)
-			rb.setText(item)
-			bgLayout.addWidget(rb, i, 0)
-			i=i+1
+				radioButton.setChecked(1)
+			radioButton.setText(item)
+			i += 1
+		if callBack:
+			# did not find a QGroupBox signal. Not tried hard though
+			buttonGroup.buttonReleased.connect(callBack)
 
 		if fieldName:
-			self.__registerField(fieldName, w, 'QButtonGroup')
-		if callBack:
-			w.connect(w, SIGNAL("released(int)"), callBack)
+			self.__registerField(fieldName, buttonGroup, 'QButtonGroup')
 
 		self.__addWidget(w)
 
@@ -479,45 +486,55 @@ class AbsQtScreen(AbsScreen):
 
 	def addCheckList(self,fieldName, label, defaultValueTuple=([],[]), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		b, l = self.__createGroupBoxAndLayout(label)
+		w = QtGui.QGroupBox(self.widget)
+		w.setTitle(label)
 
-		w= AbsQtQTable(b, callBack)
-		w.setNumCols(w.numCols() + 1)
-		w.setShowGrid(0)
-		w.setColumnWidth(0, 800)
-		w.setLeftMargin(0)
-		w.setTopMargin(0)
-
+		gridLayout = QtGui.QGridLayout(w)
+		tableView = AbsQtQTable(w, callBack)
+		gridLayout.addWidget(tableView, 0, 0, 1, 1)
+		
+		tableView.verticalHeader().hide()
+		tableView.horizontalHeader().hide()
+		tableView.setShowGrid(False)
+		tableView.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+		tableView.setColumnCount(1)
+		tableView.setColumnWidth(0, 800)
+		
 		if callBack:
-			w.connect(w,SIGNAL("currentChanged(int,int)"), callBack)
+			tableView.currentItemChanged.connect(callBack)
 			#w.connect(w,SIGNAL("clicked ( int , int , int , const QPoint &)"),callBack)
 			#w.connect(w,SIGNAL("pressed( int , int , int , const QPoint &)"),callBack)
 
-		#if toolTip:
-			#QToolTip.add(w, toolTip)
+		if toolTip:
+			w.setToolTip(toolTip)
 
-		w.setNumRows(len(items))
-		j = 0
+		tableView.setRowCount(len(items))
+		i = 0
 		for item in items:
-			c = QCheckTableItem(w, item)
-			c.setChecked(item in defaultValue)
-			w.setItem(j, 0, c)
-			j = j+1
+			tableView.insertRow(i)
+			widgetItem = QtGui.QTableWidgetItem(item)
+			widgetItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
+			if item in defaultValue:
+				widgetItem.setCheckState(2)
+			else:
+				widgetItem.setCheckState(0)
 
-		l.addWidget(w, 0, 0)
+			tableView.setItem(i, 0, widgetItem)
+			i += 1
+
 		if fieldName:
-			self.__registerField(fieldName, w, 'QTableWidget')
+			self.__registerField(fieldName, tableView, 'QTableWidget')
 
-		self.__addWidget(b)
+		self.__addWidget(w)
 
 #in the soon future, maybe all widgets will be extended
 class AbsQtQTable(QtGui.QTableWidget):
 	def __init__(self, w, callBack):
-		QtGui.QTableWidget.__init__(self, w,  'w')
+		QtGui.QTableWidget.__init__(self, w)
 		self.callBack = callBack
 
-	def contentsMouseReleaseEvent(self, e):
-		QtGui.QTableWidget.contentsMouseReleaseEvent(self, e)
+	def mouseReleaseEvent(self, e):
+		QtGui.QTableWidget.mouseReleaseEvent(self, e)
 		if self.callBack:
 			self.callBack()
 
