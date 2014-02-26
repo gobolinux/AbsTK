@@ -58,7 +58,10 @@ class AbsScreen :
 
 	def setEnabled(self, field, enabled) :
 		if self.fields.has_key(field) :
-			self.fields[field].setEnabled(enabled)
+			try:
+				self.fields[field].setEnabled(enabled)
+			except:
+				pass
 			return 1
 		else :
 			return 0
