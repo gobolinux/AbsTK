@@ -7,21 +7,27 @@ class NewQWizard(QtGui.QWizard):
 	def __init__(self, qabswizard):
 		QtGui.QWizard.__init__(self)
 		self.qabswizard = qabswizard
+		self.returnCode = 0
+		self.button(QtGui.QWizard.NextButton).clicked.connect(self.next)
+		self.button(QtGui.QWizard.FinishButton).clicked.connect(self.finish)
 
 	def currentScreen(self):
-		i = self.indexOf(self.currentPage())
+		i = self.currentId()
 		return self.qabswizard.screens[i]
-
 
 	def next(self):
 		screen = self.currentScreen()
-		if not screen.nextCB or screen.nextCB():
-			QtGui.QWizard.next(self)
+		# TODO: Fix screen validation
+		#if not screen.nextCB or screen.nextCB():
+			#QtGui.QWizard.next(self)
+		#if screen.nextCB and not screen.nextCB():
+			#QtGui.QWizard.back(self)
 
 	def finish(self):
 		screen = self.currentScreen()
-		if not screen.nextCB or screen.nextCB():
-			QtGui.QWizard.finish(self)
+		self.returnCode = 1
+		#if not screen.nextCB or screen.nextCB():
+			#QtGui.QWizard.finish(self)
 
 class AbsQtWizard(AbsWizard):
 	def __init__(self, name):
@@ -49,7 +55,8 @@ class AbsQtWizard(AbsWizard):
 	def start(self):
 		#self.app.setMainWidget(self.qwizard)
 		self.qwizard.show()
-		return self.app.exec_()
+		self.app.exec_()
+		return self.qwizard.returnCode
 
 	def addScreen(self, absQtScreen, pos=0):
 		# Add the screen at the end
@@ -73,7 +80,7 @@ class AbsQtWizard(AbsWizard):
 			#self.qwizard.setFinishEnabled(self.lastScreen.widget, 1)
 		# Add the screen right after the current one
 		elif pos == -1:
-			pos = self.qwizard.indexOf(self.qwizard.currentPage()) + 1
+			pos = self.qwizard.currentId() + 1
 			self.screens.insert(pos, absQtScreen)
 			self.qwizard.insertPage(absQtScreen.widget, absQtScreen.widget.windowTitle(), pos)
 		# Add the screen at a specific possition
