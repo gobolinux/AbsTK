@@ -77,11 +77,12 @@ class AbsTranslator :
 	doc = None
 	lang = None
 	
-	def __init__(self, translationsFile = '', lang = '') :
+	def __init__(self, translationsFile = '', lang = '', mode = 'curses') :
 		import libxml2, os
 		if translationsFile and lang and os.access(translationsFile, os.R_OK):
 			self.doc = libxml2.parseFile(translationsFile)
 			self.lang = lang
+			self.mode = mode
 
 	def tr(self,s) :
 		if self.lang and self.doc :
@@ -89,6 +90,9 @@ class AbsTranslator :
 			results = self.doc.xpathEval('/TS/context/message[source = \'%s\']/translation/text()'%(rs,))
 			if not results :
 				return s
-			return results[0].content.replace('&apos;',"'").replace('&quot;',"\\").decode('utf-8').encode(locale.getpreferredencoding())
+			contents = results[0].content.replace('&apos;',"'").replace('&quot;',"\\").decode('utf-8')
+			if self.mode == 'curses' :
+				contents = contents.encode(locale.getpreferredencoding())
+			return contents
 		else :
 			return s
