@@ -13,7 +13,7 @@ class keys :
 class actions :
    PASSTHROUGH = 0
    HANDLED = -2
-   PREV = -1
+   PREVIOUS = -1
    NEXT = 1
    FOCUS_ON_BUTTONS = 10
 
@@ -478,7 +478,7 @@ class CursesAbstractList(CursesWidget):
          action = actions.HANDLED
       if c < 0 :
          c = 0
-         action = actions.PREV
+         action = actions.PREVIOUS
       elif c >= len(self.items) :
          c = len(self.items) - 1
          action = actions.NEXT
@@ -562,11 +562,12 @@ class CursesCheckList(CursesAbstractList) :
 class CursesTextBox(CursesWidget) :
 
    def __init__(self, label, defaultValue, callBack, tooltip) :
-      self.height = 18
+      self.height = maxY - 10
       self.width = maxX - 10
       self.first = 0
       self.label = label
       self.value = defaultValue.split("\n")
+      self.textWidth = max([len(l) for l in self.value])
       self.inside = False
       self.enabled = True
       self.callBack = callBack
@@ -587,8 +588,9 @@ class CursesTextBox(CursesWidget) :
       w.clear()
       w.border()
       f = self.first
-      pc = (self.first+0.0)/len(self.value)
-      drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
+      if len(self.value) > self.height - 2:
+         pc = (self.first+0.0)/len(self.value)
+         drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
       ypos = y+2
       for item in self.value[f:f+self.height-3] :
          cropItem = item[self.scrollH:self.width-2+self.scrollH].ljust(self.width-2)
@@ -604,20 +606,30 @@ class CursesTextBox(CursesWidget) :
             self.runCallback()
             return actions.NEXT
          elif key == curses.KEY_UP :
-            f = f - 1
+            if len(self.value) > self.height - 2 :
+               f = f - 1
+            else :
+               return actions.PREVIOUS
          elif key == curses.KEY_DOWN :
-            f = f + 1
+            if len(self.value) > self.height - 2 :
+               f = f + 1
+            else :
+               return actions.NEXT
          elif key == curses.KEY_PPAGE :
-            f = f - (self.height - 3)
+            if len(self.value) > self.height - 2 :
+               f = f - (self.height - 3)
          elif key == curses.KEY_NPAGE :
-            f = f + (self.height - 3)
+            if len(self.value) > self.height - 2 :
+               f = f + (self.height - 3)
          elif key == curses.KEY_RIGHT:
-            self.scrollH = self.scrollH + 10
-            return actions.HANDLED
+            if self.textWidth > self.width - 2 :
+               self.scrollH = self.scrollH + 10
+               return actions.HANDLED
          elif key == curses.KEY_LEFT:
-            if self.scrollH > 0:
-               self.scrollH = self.scrollH - 10
-            return actions.HANDLED
+            if self.textWidth > self.width - 2 :
+               if self.scrollH > 0:
+                  self.scrollH = self.scrollH - 10
+                  return actions.HANDLED
          if f < 0 :
             f = 0
          if f >= len(self.value) :
@@ -668,7 +680,7 @@ class CursesBoolean(CursesWidget) :
       elif key == curses.KEY_LEFT or key == curses.KEY_RIGHT :
          return actions.FOCUS_ON_BUTTONS
       elif key == curses.KEY_UP :
-         return actions.PREV
+         return actions.PREVIOUS
       elif key == curses.KEY_DOWN or key == keys.TAB :
          return actions.NEXT
       return actions.PASSTHROUGH
@@ -701,7 +713,7 @@ class CursesButton(CursesWidget) :
       elif key == keys.TAB or key == curses.KEY_DOWN :
          return actions.NEXT
       elif key == curses.KEY_UP :
-         return actions.PREV
+         return actions.PREVIOUS
       return actions.PASSTHROUGH
 
 class CursesEntry(CursesWidget) :
@@ -745,7 +757,7 @@ class CursesEntry(CursesWidget) :
    def processKey(self, key) :
       if key == curses.KEY_UP :
          self.runCallback()
-         return actions.PREV
+         return actions.PREVIOUS
       elif key == curses.KEY_DOWN or key == keys.TAB or key == curses.KEY_ENTER :
          self.runCallback()
          return actions.NEXT
@@ -753,6 +765,7 @@ class CursesEntry(CursesWidget) :
          cur = self.cursor
          self.value = self.value[:cur] + chr(key) + self.value[cur:]
          self.cursor = cur + 1
+         self.runCallback()
          return actions.HANDLED
       elif key == 127 or key == 263:
          cur = self.cursor
@@ -877,8 +890,8 @@ class AbsCursesScreen(AbsScreen) :
       elif motion == motion == actions.FOCUS_ON_BUTTONS :
          self.focus = len(self.focusWidgets)
          return motion
-      assert motion == actions.PREV or motion == actions.NEXT, "Motion is " + str(motion)
-      if motion == actions.PREV :
+      assert motion == actions.PREVIOUS or motion == actions.NEXT, "Motion is " + str(motion)
+      if motion == actions.PREVIOUS :
          delta = -1
       elif motion == actions.NEXT :
          delta = 1
