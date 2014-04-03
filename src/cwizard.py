@@ -369,11 +369,15 @@ class CursesLabel(CursesWidget) :
 class CursesAbstractList(CursesWidget):
 
    def __init__(self, label, items, defaultValue, callBack, tooltip) :
-      if len(items) < 5 and len(items) > 0 :
+      if maxY <= 25 :
+         limit = 5
+      else :
+         limit = maxY / 3
+      if len(items) < limit and len(items) > 0 :
          self.height = len(items)+1
          self.isCompact = True
       else :
-         self.height = 8
+         self.height = limit + 3
          self.isCompact = False
       self.width = maxX - 10
       self.first = 0
@@ -418,16 +422,13 @@ class CursesAbstractList(CursesWidget):
          drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
          ypos = y+2
          xpos = x+1
-      currItem = 0
-      if len(self.items) > 0 :
-         currItem = self.items[curr]
-      else :
+      if len(self.items) == 0 :
          return
       for i in range(first, last) :
          item = self.items[i]
          value = self.isSet(i)
          cropItem = item[self.scrollH:self.width-6+self.scrollH].ljust(self.width-6)
-         if item == currItem :
+         if i == self.current :
             at = attritem
          else :
             at = attrlist
