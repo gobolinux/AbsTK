@@ -72,8 +72,10 @@ scr = Screen('Screen')
 w.addScreen(scr)
 
 
+def test():
+	return w.getValue("TestDropList").startswith("Valid")
 
-scr = Screen('Screen')
+scr = Screen('Screen ddsdadas')
 scr.addBoolean('TestBoolean', 'Testing Boolean', 1, 'Test Tooltip Boolean', TestBooleanCallback)
 scr.addPassword('TestPassword', 'Testing Password', 'xxx', 'Tooltip', TestPasswordCallback)
 scr.addLineEdit('TestLineEdit', 'Testing LineEdit', 'xxxyyy', 'Tooltip', TestLineEditCallback)
@@ -83,8 +85,20 @@ w.addScreen(scr)
 
 scr = Screen('Screen')
 scr.addButton('TestButton', 'Testing Button', 1, 'Tooltip button', TestButtonCallback)
-scr.addDropList('TestDropList', 'Testing List', (['aaaa', 'bbbb', 'cccc'], 'bbbb'), 'Tooltip', TestBoxListCallback)
+scr.addDropList('TestDropList', 'Testing List', (['Invalid 1', 'Invalid 2', 'Valid 1', 'Valid 2'], 'Invalid 2'), 'Tooltip', TestBoxListCallback)
+scr.onValidate(test)
 w.addScreen(scr)
+
+
+def mustMatch():
+	return w.getValue("LineMatch1") != "" and w.getValue("LineMatch1") == w.getValue("LineMatch2")
+
+scr = Screen('Must match')
+scr.addLineEdit('LineMatch1', 'Must Match 1', '', 'Tooltip')
+scr.addLineEdit('LineMatch2', 'Must Match 2', '', 'Tooltip')
+scr.onValidate(mustMatch)
+w.addScreen(scr)
+
 
 
 scr = Screen('Last Screen')
@@ -95,7 +109,7 @@ scr.addLabel('Parameter3', 'xyz')
 w.addScreen(scr)
 
 
-w.start()
+print 'ret=', w.start()
 
 for FieldName in [ 'TestBoolean', 'TestPassword', 'TestMultiLineEdit', 'TestBoxList', 'TestCheckList', 'TestRadioList']:
 	print FieldName, '=', w.getValue(FieldName)
