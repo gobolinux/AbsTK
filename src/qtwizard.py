@@ -17,17 +17,10 @@ class NewQWizard(QtGui.QWizard):
 
 	def next(self):
 		screen = self.currentScreen()
-		# TODO: Fix screen validation
-		#if not screen.nextCB or screen.nextCB():
-			#QtGui.QWizard.next(self)
-		#if screen.nextCB and not screen.nextCB():
-			#QtGui.QWizard.back(self)
 
 	def finish(self):
 		screen = self.currentScreen()
 		self.returnCode = 1
-		#if not screen.nextCB or screen.nextCB():
-			#QtGui.QWizard.finish(self)
 		
 
 class AbsQtWizard(AbsWizard):
@@ -64,21 +57,7 @@ class AbsQtWizard(AbsWizard):
 		if pos == 0:
 			self.screens.append(absQtScreen)
 			self.qwizard.addPage(absQtScreen.widget)
-			if self.lastScreen:
-				pass
-				#more than one page
-				#self.qwizard.setFinishEnabled(self.lastScreen.widget, 0)
-				#self.qwizard.finishButton().setText("&Finish")
-				#self.qwizard.backButton().show()
-			else:
-				#just one page yet
-				#self.qwizard.finishButton().setText("&Ok")
-				#self.qwizard.backButton().hide()
-				pass
-
-			#self.qwizard.helpButton().hide()
 			self.lastScreen = absQtScreen
-			#self.qwizard.setFinishEnabled(self.lastScreen.widget, 1)
 		# Add the screen right after the current one
 		elif pos == -1:
 			pos = self.qwizard.currentId() + 1
@@ -88,8 +67,6 @@ class AbsQtWizard(AbsWizard):
 		else:
 			self.screens.insert(pos,absQtScreen)
 			self.qwizard.insertPage(absQtScreen.widget, absQtScreen.widget.windowTitle(),pos)
-		#self.qwizard.connect(self.qwizard.finishButton(), SIGNAL('released()'), self.__finish)
-		#self.qwizard.connect(self.qwizard.cancelButton(), SIGNAL('released()'), self.__cancel)
 
 	def removeScreen(self, absQtScreen):
 		self.screens.remove(absQtScreen)
@@ -104,12 +81,6 @@ class AbsQtWizard(AbsWizard):
 		self.lastScreen = None
 		self.screens = []
 		self.qwizard.setGeometry(QtCore.QRect(50, 50, 480, 400))
-
-	#def __finish(self):
-		#self.app.exit(1)
-
-	#def __cancel(self):
-		#self.app.exit(0)
 
 class NewQWizardPage(QtGui.QWizardPage):
 	def __init__(self):
@@ -126,12 +97,9 @@ class NewQWizardPage(QtGui.QWizardPage):
 class AbsQtScreen(AbsScreen):
 	def __init__(self, title = "I DON'T HAVE A NAME"):
 		AbsScreen.__init__(self)
-		#self.widget = QtGui.QWidget()
 		self.widget = NewQWizardPage()
-		#self.pageLayout = QtGui.QGridLayout(self.widget, 1, 1, 11, 6, "pageLayout")
 		self.pageLayout = QtGui.QGridLayout(self.widget)
 		spacer = QtGui.QSpacerItem(2, 2, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
-		#spacer.setSizeType(QSpacerItem.Minimum)
 		self.pageLayout.addItem(spacer, 10, 0)
 		self.rowsCount = 0
 		self.setTitle(title)
@@ -265,9 +233,6 @@ class AbsQtScreen(AbsScreen):
 
 
 	def __addLayout(self, widget, row=-1, column=-1):
-		#TODO:
-		#pageLayout_2.addMultiCellWidget(self.textEdit2,1,1,0,1)
-
 		if row  == -1 or column == -1:
 			row = self.rowsCount
 			column = 0
@@ -278,9 +243,6 @@ class AbsQtScreen(AbsScreen):
 
 
 	def __addWidget(self, widget, row=-1, column=-1):
-		#TODO:
-		#pageLayout_2.addMultiCellWidget(self.textEdit2,1,1,0,1)
-
 		if row  == -1:
 			row = self.rowsCount
 
@@ -479,13 +441,11 @@ class AbsQtScreen(AbsScreen):
 		buttonGroup = QtGui.QButtonGroup(self.widget)
 		w = QtGui.QGroupBox(self.widget)
 		w.setTitle(label)
-		#w.setColumnLayout(0, QtCore.Qt.Vertical)
 		gridLayout = QtGui.QGridLayout(w)
 		
 		if toolTip:
 			w.setToolTip(toolTip)
 
-		#bgLayout.setAlignment(QtCore.Qt.AlignTop)
 		try:
 			selectedIndex = items.index(defaultValue)
 		except:
@@ -511,7 +471,6 @@ class AbsQtScreen(AbsScreen):
 
 	def __createGroupBoxAndLayout(self, label):
 		gb = QtGui.QGroupBox(self.widget)
-		#gb.setColumnLayout(0, QtCore.Qt.Vertical)
 		gb.setTitle(label)
 		gbLayout = QtGui.QGridLayout(gb.layout())
 		gbLayout.setAlignment(QtCore.Qt.AlignTop)
@@ -535,8 +494,6 @@ class AbsQtScreen(AbsScreen):
 		
 		if callBack:
 			tableView.currentItemChanged.connect(callBack)
-			#w.connect(w,SIGNAL("clicked ( int , int , int , const QPoint &)"),callBack)
-			#w.connect(w,SIGNAL("pressed( int , int , int , const QPoint &)"),callBack)
 		tableView.currentItemChanged.connect(self.widget.completeChanged)
 
 		if toolTip:
