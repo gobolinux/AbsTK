@@ -28,6 +28,7 @@ class NewQWizard(QtGui.QWizard):
 		self.returnCode = 1
 		#if not screen.nextCB or screen.nextCB():
 			#QtGui.QWizard.finish(self)
+		
 
 class AbsQtWizard(AbsWizard):
 	def __init__(self, name):
@@ -110,11 +111,23 @@ class AbsQtWizard(AbsWizard):
 	#def __cancel(self):
 		#self.app.exit(0)
 
+class NewQWizardPage(QtGui.QWizardPage):
+	def __init__(self):
+		QtGui.QWizardPage.__init__(self)
+		self.validator = None
+	
+	def isComplete(self):
+		ret = True
+		if self.validator:
+			ret = self.validator()
+		return ret
+
+
 class AbsQtScreen(AbsScreen):
 	def __init__(self, title = "I DON'T HAVE A NAME"):
 		AbsScreen.__init__(self)
 		#self.widget = QtGui.QWidget()
-		self.widget = QtGui.QWizardPage()
+		self.widget = NewQWizardPage()
 		#self.pageLayout = QtGui.QGridLayout(self.widget, 1, 1, 11, 6, "pageLayout")
 		self.pageLayout = QtGui.QGridLayout(self.widget)
 		spacer = QtGui.QSpacerItem(2, 2, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
@@ -134,6 +147,7 @@ class AbsQtScreen(AbsScreen):
 
 	def onValidate(self, nextCB):
 		self.nextCB = nextCB
+		self.widget.validator = nextCB
 
 	def addImage(self, fileName):
 		p = QtGui.QPixmap()
@@ -292,7 +306,8 @@ class AbsQtScreen(AbsScreen):
 			self.__registerField(fieldName, w, 'QCheckBox')
 		if callBack:
 			w.stateChanged.connect(callBack)
-			
+		w.stateChanged.connect(self.widget.completeChanged)
+
 		self.__addWidget(w)
 
 	def __addLineEditGeneric(self, fieldName, label, defaultValue, toolTip, callBack, isPasswd):
@@ -306,6 +321,11 @@ class AbsQtScreen(AbsScreen):
 				w.lostFocus.connect(callBack)
 			else:
 				w.textChanged.connect(callBack)
+
+		if isPasswd:
+			w.lostFocus.connect(self.widget.completeChanged)
+		else:
+			w.textChanged.connect(self.widget.completeChanged)
 
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -347,6 +367,7 @@ class AbsQtScreen(AbsScreen):
 
 		if callBack:
 			mle.textChanged.connect(callBack)
+		mle.textChanged.connect(self.widget.completeChanged)
 
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -374,6 +395,7 @@ class AbsQtScreen(AbsScreen):
 			w.setToolTip(toolTip)
 		if callBack:
 			w.released.connect(callBack)
+		w.released.connect(self.widget.completeChanged)
 
 		self.__addWidget(w)
 
@@ -405,6 +427,7 @@ class AbsQtScreen(AbsScreen):
 			w.setToolTip(toolTip)
 		if callBack:
 			tableView.currentCellChanged.connect(callBack)
+		tableView.currentCellChanged.connect(self.widget.completeChanged)
 		
 		i = 0
 		tableView.insertColumn(0)
@@ -446,6 +469,8 @@ class AbsQtScreen(AbsScreen):
 			self.__registerField(fieldName, w, 'QDropList')
 		if callBack :
 			w.currentIndexChanged.connect(callBack)
+		w.currentIndexChanged.connect(self.widget.completeChanged)
+
 		self.__addWidget(w)
 
 	def addRadioList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
@@ -477,6 +502,7 @@ class AbsQtScreen(AbsScreen):
 		if callBack:
 			# did not find a QGroupBox signal. Not tried hard though
 			buttonGroup.buttonReleased.connect(callBack)
+		buttonGroup.buttonReleased.connect(self.widget.completeChanged)
 
 		if fieldName:
 			self.__registerField(fieldName, buttonGroup, 'QButtonGroup')
@@ -511,6 +537,7 @@ class AbsQtScreen(AbsScreen):
 			tableView.currentItemChanged.connect(callBack)
 			#w.connect(w,SIGNAL("clicked ( int , int , int , const QPoint &)"),callBack)
 			#w.connect(w,SIGNAL("pressed( int , int , int , const QPoint &)"),callBack)
+		tableView.currentItemChanged.connect(self.widget.completeChanged)
 
 		if toolTip:
 			w.setToolTip(toolTip)
