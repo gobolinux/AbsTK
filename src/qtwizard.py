@@ -86,8 +86,8 @@ class NewQWizardPage(QtGui.QWizardPage):
 	def __init__(self):
 		QtGui.QWizardPage.__init__(self)
 		self.validator = None
-	
-	def isComplete(self):
+
+	def validatePage(self):
 		ret = True
 		if self.validator:
 			ret = self.validator()
