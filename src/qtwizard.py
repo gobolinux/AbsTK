@@ -98,7 +98,9 @@ class AbsQtScreen(AbsScreen):
 	def __init__(self, title = "I DON'T HAVE A NAME"):
 		AbsScreen.__init__(self)
 		self.widget = NewQWizardPage()
+
 		self.pageLayout = QtGui.QGridLayout(self.widget)
+		self.pageLayout.setAlignment(QtCore.Qt.AlignTop)
 		spacer = QtGui.QSpacerItem(2, 2, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
 		self.pageLayout.addItem(spacer, 10, 0)
 		self.rowsCount = 0
@@ -124,6 +126,16 @@ class AbsQtScreen(AbsScreen):
 		w.setPixmap(p)
 		self.__addWidget(w)
 
+	def setEnabled(self, fieldName, newValue):
+		if self.fields.has_key(fieldName):
+			field = self.fields[fieldName]
+			fieldType = self.fieldsTypes[fieldName]
+
+			if fieldType == 'QButtonGroup':
+				for button in field.buttons():
+					button.setEnabled(newValue)
+			else:
+				field.setEnabled(newValue)
 
 	def setValue(self, fieldName, newValue):
 		if self.fields.has_key(fieldName):
@@ -382,8 +394,7 @@ class AbsQtScreen(AbsScreen):
 		tableView.horizontalHeader().hide()
 		tableView.setShowGrid(False)
 		tableView.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
-		tableView.setColumnCount(1)
-		tableView.setColumnWidth(0, 300)
+		tableView.setColumnCount(0)
 		
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -404,6 +415,8 @@ class AbsQtScreen(AbsScreen):
 			selectedIndex = items.index(defaultValue)
 		except:
 			selectedIndex = 0
+
+		tableView.setColumnWidth(0, 700)
 		
 		if tableView.item(selectedIndex, 0):
 			tableView.item(selectedIndex, 0).setSelected(True)
@@ -499,7 +512,6 @@ class AbsQtScreen(AbsScreen):
 		if toolTip:
 			w.setToolTip(toolTip)
 
-		tableView.setRowCount(len(items))
 		i = 0
 		for item in items:
 			tableView.insertRow(i)
