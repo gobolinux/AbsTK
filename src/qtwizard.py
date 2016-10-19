@@ -106,14 +106,25 @@ class AbsQtScreen(AbsScreen):
 		self.rowsCount = 0
 		self.setTitle(title)
 		self.fieldsTypes = {}
+		self.fieldsContainer = {}
 
 		self.widget.setTitle(title)
 
 		self.nextCB = None
 
-	def __registerField(self, name, widget, fieldType):
+	def __registerField(self, name, widget, fieldType, container=None):
 		self.fields[name] = widget
 		self.fieldsTypes[name] = fieldType
+		self.fieldsContainer[name] = container
+
+	def __unregisterField(self, name):
+		container = None
+		if name and name in self.fields:
+			container = self.fieldsContainer[name]
+			del self.fields[name]
+			del self.fieldsTypes[name]
+			del self.fieldsContainer[name]
+		return container
 
 	def onValidate(self, nextCB):
 		self.nextCB = nextCB
@@ -266,6 +277,11 @@ class AbsQtScreen(AbsScreen):
 		if row >= self.rowsCount:
 			self.rowsCount = row + 1
 
+	def delWidget(self, fieldName):
+		# Not supported on every QtWidget
+		container = self.__unregisterField(fieldName)
+		if container:
+			self.pageLayout.removeWidget(container)
 
 	def setTitle(self,title):
 		self.widget.setWindowTitle(title)
@@ -422,7 +438,7 @@ class AbsQtScreen(AbsScreen):
 			tableView.item(selectedIndex, 0).setSelected(True)
 		
 		if fieldName:
-			self.__registerField(fieldName, tableView, 'QListBox')
+			self.__registerField(fieldName, tableView, 'QListBox', w)
 
 		self.__addWidget(w)
 
@@ -478,7 +494,7 @@ class AbsQtScreen(AbsScreen):
 		buttonGroup.buttonReleased.connect(self.widget.completeChanged)
 
 		if fieldName:
-			self.__registerField(fieldName, buttonGroup, 'QButtonGroup')
+			self.__registerField(fieldName, buttonGroup, 'QButtonGroup', w)
 
 		self.__addWidget(w)
 

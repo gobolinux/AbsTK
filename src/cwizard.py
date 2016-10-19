@@ -901,11 +901,22 @@ class AbsCursesScreen(AbsScreen) :
    def __registerField(self, name, widget) :
       self.fields[name] = widget
 
+   def __unregisterField(self, name) :
+      w = None
+      if name and name in self.fields :
+         w = self.fields[name]
+         del self.fields[name]
+      return w
+
    def __registerFocus(self, widget) :
       self.focusWidgets.append(widget)
       if self.focus == -1 :
          self.focus = 0
          widget.inside = True
+
+   def __unregisterFocus(self, widget) :
+      if widget and widget in self.focusWidgets :
+         self.focusWidgets.remove(widget)
 
    def setTitle(self, title) :
       self.title = title
@@ -916,6 +927,12 @@ class AbsCursesScreen(AbsScreen) :
       if focus :
          self.__registerFocus(w)
       self.widgets.append(w)
+
+   def delWidget(self, fieldName) :
+      w = self.__unregisterField(fieldName)
+      if w :
+         self.__unregisterFocus(w)
+         self.widgets.remove(w)
 
    def addLabel(self, fieldName, label, defaultValue = '', tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
       w = CursesLabel(label)
