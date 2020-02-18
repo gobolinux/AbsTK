@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 import locale
 
@@ -44,20 +46,20 @@ class AbsScreen :
 		self.fields = {}   
 	
 	def setValue(self, field, value) :
-		if self.fields.has_key(field) :
+		if field in self.fields :
 			self.fields[field].setValue(value)
 			return 1
 		else :
 			return 0
 
 	def getValue(self, field) :
-		if self.fields.has_key(field) :
+		if field in self.fields :
 			return self.fields[field].getValue()
 		else :
 			return None
 
 	def setEnabled(self, field, enabled) :
-		if self.fields.has_key(field) :
+		if field in self.fields :
 			try:
 				self.fields[field].setEnabled(enabled)
 			except:
@@ -67,7 +69,7 @@ class AbsScreen :
 			return 0
 
 	def isEnabled(self, field) :
-		if self.fields.has_key(field) :
+		if field in self.fields :
 			return self.fields[field].isEnabled()
 		else :
 			return None

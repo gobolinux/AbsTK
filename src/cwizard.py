@@ -1,5 +1,5 @@
 # -*- encoding iso-8859-1 -*-
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import curses, curses.textpad, traceback, string, time, textwrap, threading
 from wizard import *
@@ -51,9 +51,9 @@ def hideCursor() :
 
 def center(width, data) :
    if type(data) == type("string") :
-      return (width / 2) - (len(data) / 2)
+      return int((width / 2) - (len(data) / 2))
    else :
-      return (width / 2) - (data / 2)
+      return int((width / 2) - (data / 2))
 
 def debug(s):
    stdscr.addstr(0, 0, str(s))
@@ -113,9 +113,9 @@ class AbsCursesWizard(AbsWizard) :
       if spinner != None:
          spinner.stop()
       x = 3
-      y = maxY/2-4
-      width = maxX - 6
-      subwidth = width - 2
+      y = int(maxY/2-4)
+      width = int(maxX - 6)
+      subwidth = int(width - 2)
       message = message.replace("\n", " ")
       if len(message) < subwidth :
          lines = [ message ]
@@ -141,7 +141,7 @@ class AbsCursesWizard(AbsWizard) :
       sel = default
       global forceRedraw
       while ( k != keys.ENTER and k != keys.SPACE ) :
-         l = center(width, sum(map(lambda x : len(x) + 6, options)))
+         l = center(width, sum([len(x) + 6 for x in options]))
          for i in range(len(options)) :
             drawButton(area, 3 + l, height - 3, " "+options[i]+" ", i == sel)
             l = l + len(options[i]) + 4
@@ -297,7 +297,7 @@ class Spinner(threading.Thread) :
       spin = ['-','\\','|','/']
       step = 0
       while not self.stopped:
-         stdscr.addstr(maxY/2, maxX/2, "("+spin[step]+")")
+         stdscr.addstr(int(maxY/2), int(maxX/2), "("+spin[step]+")")
          stdscr.refresh()
          step = step + 1
          if step == len(spin):
@@ -372,7 +372,7 @@ class CursesAbstractList(CursesWidget):
       if maxY <= 25 :
          limit = 5
       else :
-         limit = maxY / 3
+         limit = int(maxY / 3)
       if len(items) < limit and len(items) > 0 :
          self.height = len(items)+1
          self.isCompact = True
@@ -418,7 +418,7 @@ class CursesAbstractList(CursesWidget):
          w.attrset(attrdefault)
          w.clear()
          w.border()
-         pc = max(((curr+0.0)/max(len(self.items),1)), 0)
+         pc = int(max(((curr+0.0)/max(len(self.items),1)), 0))
          drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
          ypos = y+2
          xpos = x+1
@@ -539,7 +539,7 @@ class CursesCheckList(CursesAbstractList) :
 
    def setValue(self, valueTuple) :
       self.items = valueTuple[0][:]
-      self.value = map(lambda item : item in valueTuple[1], self.items)
+      self.value = [item in valueTuple[1] for item in self.items]
       self.first = 0
       self.current = 0
       
@@ -590,7 +590,7 @@ class CursesTextBox(CursesWidget) :
       w.border()
       f = self.first
       if len(self.value) > self.height - 2:
-         pc = (self.first+0.0)/len(self.value)
+         pc = int((self.first+0.0)/len(self.value))
          drawScrollBar(drawable, x+self.width-1, y+2, self.height - 3, pc)
       ypos = y+2
       for item in self.value[f:f+self.height-3] :
@@ -875,7 +875,7 @@ class AbsCursesScreen(AbsScreen) :
             vscroll = 0
          self.vscroll = vscroll
       if (at - 2) > padheight :
-         drawScrollBar(self.pad, maxX - 3, vscroll, padheight, ((focusAt-2)+0.0)/(at-2))
+         drawScrollBar(self.pad, maxX - 3, vscroll, padheight, int(((focusAt-2)+0.0)/(at-2)))
 
       self.pad.refresh(vscroll, 0, 1, 1, padheight, maxX-2)
       if focused :
@@ -959,7 +959,7 @@ class AbsCursesScreen(AbsScreen) :
       self.__addWidget(fieldName, w)
 
    def addCheckList(self, fieldName, label, defaultValueTuple = ([],[]), tooltip = "I DON'T HAVE A TOOLTIP", callBack = None) :
-      defaultChecks = map(lambda item : item in defaultValueTuple[1], defaultValueTuple[0])
+      defaultChecks = [item in defaultValueTuple[1] for item in defaultValueTuple[0]]
       w = CursesCheckList(label, defaultValueTuple[0], defaultChecks, callBack, tooltip)
       self.__addWidget(fieldName, w)
 

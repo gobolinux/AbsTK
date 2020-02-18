@@ -1,5 +1,5 @@
 # -*- encoding iso-8859-1 -*-
-#!/usr/bin/python
+#!/usr/bin/python3
 
 import gtk
 from wizard import *

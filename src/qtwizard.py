@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 from wizard import *
 import sys
 from PyQt4 import QtCore
@@ -8,14 +10,14 @@ class NewQWizard(QtGui.QWizard):
 		QtGui.QWizard.__init__(self)
 		self.qabswizard = qabswizard
 		self.returnCode = 0
-		self.button(QtGui.QWizard.NextButton).clicked.connect(self.next)
+		self.button(QtGui.QWizard.NextButton).clicked.connect(self.__next__)
 		self.button(QtGui.QWizard.FinishButton).clicked.connect(self.finish)
 
 	def currentScreen(self):
 		i = self.currentId()
 		return self.qabswizard.screens[i]
 
-	def next(self):
+	def __next__(self):
 		screen = self.currentScreen()
 
 	def finish(self):
@@ -138,7 +140,7 @@ class AbsQtScreen(AbsScreen):
 		self.__addWidget(w)
 
 	def setEnabled(self, fieldName, newValue):
-		if self.fields.has_key(fieldName):
+		if fieldName in self.fields:
 			field = self.fields[fieldName]
 			fieldType = self.fieldsTypes[fieldName]
 
@@ -149,7 +151,7 @@ class AbsQtScreen(AbsScreen):
 				field.setEnabled(newValue)
 
 	def setValue(self, fieldName, newValue):
-		if self.fields.has_key(fieldName):
+		if fieldName in self.fields:
 			field = self.fields[fieldName]
 			fieldType = self.fieldsTypes[fieldName]
 
@@ -166,7 +168,7 @@ class AbsQtScreen(AbsScreen):
 			if fieldType == 'QTableWidget' or fieldType == 'QListBox':
 				import types
 				
-				if type(newValue) == types.ListType:
+				if type(newValue) == list:
 					for i in range(field.rowCount()):
 						field.item(i, 0).setCheckState(str(field.item(i, 0).text()) in newValue)
 				
@@ -202,7 +204,7 @@ class AbsQtScreen(AbsScreen):
 			return 0
 
 	def getValue(self, fieldName):
-		if self.fields.has_key(fieldName):
+		if fieldName in self.fields:
 			field = self.fields[fieldName]
 			fieldType = self.fieldsTypes[fieldName]
 
@@ -210,7 +212,7 @@ class AbsQtScreen(AbsScreen):
 				return int(field.isChecked())
 			
 			elif fieldType == 'QDropList':
-				return unicode(field.currentText())
+				return str(field.currentText())
 
 			elif fieldType == 'QButtonGroup':
 				ret = []
@@ -226,7 +228,7 @@ class AbsQtScreen(AbsScreen):
 				return (ret, selected)
 			
 			elif fieldType == 'QLineEdit':
-				return unicode(field.text())
+				return str(field.text())
 			
 			elif fieldType == 'QTableWidget' or fieldType == 'QListBox':
 				ret1 = []

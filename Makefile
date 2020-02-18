@@ -7,7 +7,7 @@ PACKAGE_BASE=$(PACKAGE_ROOT)/$(VERSION)
 PACKAGE_FILE=$(PACKAGE_DIR)/$(PROGRAM)--$(VERSION)--$(shell uname -m).tar.bz2
 CVSTAG=`echo $(PROGRAM)_$(VERSION) | tr "[:lower:]" "[:upper:]" | sed  's,\.,_,g'`
 
-PYTHON_VERSION=2.7
+PYTHON_VERSION=3.8
 PYTHON_LIBS=cwizard qtwizard wizard
 PYTHON_SITE=lib/python$(PYTHON_VERSION)/site-packages
 
@@ -20,7 +20,7 @@ all:
 	
 	cd $(PYTHON_SITE) && \
 	for f in *.py; \
-	do python -c "import `basename $$f .py`" &> /dev/null; \
+	do python3 -c "import `basename $$f .py`" &> /dev/null; \
 	done
 
 version_check:

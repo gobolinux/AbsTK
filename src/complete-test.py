@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: iso-8859-1 -*-
 
 #
@@ -8,7 +8,7 @@
 import sys
 
 if len(sys.argv) == 1 :
-	print 'Syntax: %s <curses|qt|gtk>' %sys.argv[0]
+	print('Syntax: %s <curses|qt|gtk>' %sys.argv[0])
 	sys.exit(1)
 
 mode = sys.argv[1]
@@ -25,28 +25,28 @@ elif mode == 'gtk' :
 	Wizard = AbsGtkWizard
 	Screen = AbsGtkScreen
 else :
-	print 'Syntax: %s <curses|qt|gtk>' %sys.argv[0]
+	print('Syntax: %s <curses|qt|gtk>' %sys.argv[0])
 	sys.exit(1)
 
 
 def TestBooleanCallback(param):
-	print 'callback ', param
+	print('callback ', param)
 	
 
 def TestPasswordCallback():
-	print 'pwd callback '
+	print('pwd callback ')
 
 def TestLineEditCallback(param):
-	print 'lineedit callback ', param
+	print('lineedit callback ', param)
 
 def TestMultiLineEditCallback():
-	print 'lineedit callback '
+	print('lineedit callback ')
 
 def TestButtonCallback():
-	print 'button callback '
+	print('button callback ')
 
 def TestBoxListCallback():
-	print 'TestBoxListCallback callback '
+	print('TestBoxListCallback callback ')
 
 
 
@@ -109,9 +109,9 @@ scr.addLabel('Parameter3', 'xyz')
 w.addScreen(scr)
 
 
-print 'ret=', w.start()
+print('ret=', w.start())
 
 for FieldName in [ 'TestBoolean', 'TestPassword', 'TestMultiLineEdit', 'TestBoxList', 'TestCheckList', 'TestRadioList']:
-	print FieldName, '=', w.getValue(FieldName)
+	print(FieldName, '=', w.getValue(FieldName))
 
 
