@@ -2,16 +2,16 @@
 
 from wizard import *
 import sys
-from PyQt4 import QtCore
-from PyQt4 import QtGui
+from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtGui, QtWidgets
 
-class NewQWizard(QtGui.QWizard):
+class NewQWizard(QtWidgets.QWizard):
 	def __init__(self, qabswizard):
-		QtGui.QWizard.__init__(self)
+		QtWidgets.QWizard.__init__(self)
 		self.qabswizard = qabswizard
 		self.returnCode = 0
-		self.button(QtGui.QWizard.NextButton).clicked.connect(self.__next__)
-		self.button(QtGui.QWizard.FinishButton).clicked.connect(self.finish)
+		self.button(QtWidgets.QWizard.NextButton).clicked.connect(self.__next__)
+		self.button(QtWidgets.QWizard.FinishButton).clicked.connect(self.finish)
 
 	def currentScreen(self):
 		i = self.currentId()
@@ -28,7 +28,7 @@ class NewQWizard(QtGui.QWizard):
 class AbsQtWizard(AbsWizard):
 	def __init__(self, name):
 		AbsWizard.__init__(self, name)
-		self.app = QtGui.QApplication([])
+		self.app = QtWidgets.QApplication([])
 		self.qwizard = NewQWizard(self)
 		self.qwizard.setWindowTitle(name)
 		self.lastScreen = None
@@ -40,11 +40,11 @@ class AbsQtWizard(AbsWizard):
 			return ''
 		self.messageBoxPending = 1
 		if len(buttons) == 1:
-			i = QtGui.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0])
+			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0])
 		elif len(buttons) == 2:
-			i = QtGui.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1])
+			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1])
 		if len(buttons) >= 3:
-			i = QtGui.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1], buttons[2])
+			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1], buttons[2])
 		self.messageBoxPending = 0
 		return buttons[i]
 
@@ -84,9 +84,9 @@ class AbsQtWizard(AbsWizard):
 		self.screens = []
 		self.qwizard.setGeometry(QtCore.QRect(50, 50, 480, 400))
 
-class NewQWizardPage(QtGui.QWizardPage):
+class NewQWizardPage(QtWidgets.QWizardPage):
 	def __init__(self):
-		QtGui.QWizardPage.__init__(self)
+		QtWidgets.QWizardPage.__init__(self)
 		self.validator = None
 
 	def validatePage(self):
@@ -101,9 +101,9 @@ class AbsQtScreen(AbsScreen):
 		AbsScreen.__init__(self)
 		self.widget = NewQWizardPage()
 
-		self.pageLayout = QtGui.QGridLayout(self.widget)
+		self.pageLayout = QtWidgets.QGridLayout(self.widget)
 		self.pageLayout.setAlignment(QtCore.Qt.AlignTop)
-		spacer = QtGui.QSpacerItem(2, 2, QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+		spacer = QtWidgets.QSpacerItem(2, 2, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Minimum)
 		self.pageLayout.addItem(spacer, 10, 0)
 		self.rowsCount = 0
 		self.setTitle(title)
@@ -135,7 +135,7 @@ class AbsQtScreen(AbsScreen):
 	def addImage(self, fileName):
 		p = QtGui.QPixmap()
 		p.load(fileName)
-		w = QtGui.QLabel(self.widget)
+		w = QtWidgets.QLabel(self.widget)
 		w.setPixmap(p)
 		self.__addWidget(w)
 
@@ -185,7 +185,7 @@ class AbsQtScreen(AbsScreen):
 					field.setRowCount(len(items))
 					j = 0
 					for item in items:
-						c = QtGui.QTableWidgetItem(item)
+						c = QtWidgets.QTableWidgetItem(item)
 						if fieldType == 'QListBox':
 							c.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
 							c.setSelected(item == defaultValue)
@@ -289,7 +289,7 @@ class AbsQtScreen(AbsScreen):
 		self.widget.setWindowTitle(title)
 
 	def addBoolean(self, fieldName, label='', defaultValue=0, toolTip='', callBack=None):
-		w = QtGui.QCheckBox(self.widget)
+		w = QtWidgets.QCheckBox(self.widget)
 		w.setText(label)
 		w.setChecked(defaultValue)
 		if toolTip:
@@ -303,19 +303,19 @@ class AbsQtScreen(AbsScreen):
 		self.__addWidget(w)
 
 	def __addLineEditGeneric(self, fieldName, label, defaultValue, toolTip, callBack, isPasswd):
-		w = QtGui.QLineEdit(self.widget)
+		w = QtWidgets.QLineEdit(self.widget)
 		w.setText(defaultValue)
 		if isPasswd:
-			w.setEchoMode(QtGui.QLineEdit.Password)
+			w.setEchoMode(QtWidgets.QLineEdit.Password)
 
 		if callBack:
 			if isPasswd:
-				w.lostFocus.connect(callBack)
+				w.editingFinished.connect(callBack)
 			else:
 				w.textChanged.connect(callBack)
 
 		if isPasswd:
-			w.lostFocus.connect(self.widget.completeChanged)
+			w.editingFinished.connect(self.widget.completeChanged)
 		else:
 			w.textChanged.connect(self.widget.completeChanged)
 
@@ -326,9 +326,9 @@ class AbsQtScreen(AbsScreen):
 			self.__registerField(fieldName, w, 'QLineEdit')
 
 		if label:
-			layout = QtGui.QHBoxLayout()
+			layout = QtWidgets.QHBoxLayout()
 
-			l = QtGui.QLabel(self.widget)
+			l = QtWidgets.QLabel(self.widget)
 			l.setText(label)
 			layout.addWidget(l)
 			layout.addWidget(w)
@@ -346,12 +346,12 @@ class AbsQtScreen(AbsScreen):
 
 
 	def addMultiLineEdit(self, fieldName='', label='', defaultValue='', toolTip='', callBack=None):
-		w = QtGui.QGroupBox(self.widget)
+		w = QtWidgets.QGroupBox(self.widget)
 		w.setTitle(label)
 
-		gbLayout = QtGui.QVBoxLayout(w)
+		gbLayout = QtWidgets.QVBoxLayout(w)
 
-		mle = QtGui.QTextEdit(w)
+		mle = QtWidgets.QTextEdit(w)
 		mle.setText(defaultValue)
 		mle.setReadOnly(not fieldName)
 
@@ -371,7 +371,7 @@ class AbsQtScreen(AbsScreen):
 
 
 	def addLabel(self, fieldName, label='', defaultValue='', toolTip=''):
-		w = QtGui.QLabel(self.widget)
+		w = QtWidgets.QLabel(self.widget)
 		w.setText(label)
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -380,9 +380,9 @@ class AbsQtScreen(AbsScreen):
 		self.__addWidget(w)
 
 	def addButton(self, fieldName, label='', defaultValue='', toolTip='', callBack=None):
-		w = QtGui.QPushButton(self.widget)
+		w = QtWidgets.QPushButton(self.widget)
 		w.setText(label)
-		w.setSizePolicy(QtGui.QSizePolicy.Fixed, QtGui.QSizePolicy.Fixed)
+		w.setSizePolicy(QtWidgets.QSizePolicy.Fixed, QtWidgets.QSizePolicy.Fixed)
 		if toolTip:
 			w.setToolTip(toolTip)
 		if callBack:
@@ -401,17 +401,17 @@ class AbsQtScreen(AbsScreen):
 
 	def addBoxList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		w = QtGui.QGroupBox(self.widget)
+		w = QtWidgets.QGroupBox(self.widget)
 		w.setTitle(label)
 		
-		gridLayout = QtGui.QGridLayout(w)
-		tableView = QtGui.QTableWidget(w)
+		gridLayout = QtWidgets.QGridLayout(w)
+		tableView = QtWidgets.QTableWidget(w)
 		gridLayout.addWidget(tableView, 0, 0, 1, 1)
 		
 		tableView.verticalHeader().hide()
 		tableView.horizontalHeader().hide()
 		tableView.setShowGrid(False)
-		tableView.setSelectionMode(QtGui.QAbstractItemView.SingleSelection)
+		tableView.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 		tableView.setColumnCount(0)
 		
 		if toolTip:
@@ -424,7 +424,7 @@ class AbsQtScreen(AbsScreen):
 		tableView.insertColumn(0)
 		for item in items:
 			tableView.insertRow(i)
-			widgetItem = QtGui.QTableWidgetItem(item)
+			widgetItem = QtWidgets.QTableWidgetItem(item)
 			widgetItem.setFlags(QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEnabled)
 			tableView.setItem(i, 0, widgetItem)
 			i += 1
@@ -447,7 +447,7 @@ class AbsQtScreen(AbsScreen):
 
 	def addDropList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		w = QtGui.QComboBox(self.widget)
+		w = QtWidgets.QComboBox(self.widget)
 		w.setEditable(0)
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -469,10 +469,10 @@ class AbsQtScreen(AbsScreen):
 	def addRadioList(self, fieldName, label='', defaultValueTuple=([],''), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
 		
-		buttonGroup = QtGui.QButtonGroup(self.widget)
-		w = QtGui.QGroupBox(self.widget)
+		buttonGroup = QtWidgets.QButtonGroup(self.widget)
+		w = QtWidgets.QGroupBox(self.widget)
 		w.setTitle(label)
-		gridLayout = QtGui.QGridLayout(w)
+		gridLayout = QtWidgets.QGridLayout(w)
 		
 		if toolTip:
 			w.setToolTip(toolTip)
@@ -483,7 +483,7 @@ class AbsQtScreen(AbsScreen):
 			selectedIndex = 0
 		i=0
 		for item in items:
-			radioButton = QtGui.QRadioButton(w)
+			radioButton = QtWidgets.QRadioButton(w)
 			gridLayout.addWidget(radioButton, i, 0, 1, 1)
 			buttonGroup.addButton(radioButton)
 			if i == selectedIndex:
@@ -501,25 +501,25 @@ class AbsQtScreen(AbsScreen):
 		self.__addWidget(w)
 
 	def __createGroupBoxAndLayout(self, label):
-		gb = QtGui.QGroupBox(self.widget)
+		gb = QtWidgets.QGroupBox(self.widget)
 		gb.setTitle(label)
-		gbLayout = QtGui.QGridLayout(gb.layout())
+		gbLayout = QtWidgets.QGridLayout(gb.layout())
 		gbLayout.setAlignment(QtCore.Qt.AlignTop)
 		return gb, gbLayout
 
 	def addCheckList(self,fieldName, label, defaultValueTuple=([],[]), toolTip='', callBack=None):
 		items, defaultValue = defaultValueTuple
-		w = QtGui.QGroupBox(self.widget)
+		w = QtWidgets.QGroupBox(self.widget)
 		w.setTitle(label)
 
-		gridLayout = QtGui.QGridLayout(w)
+		gridLayout = QtWidgets.QGridLayout(w)
 		tableView = AbsQtQTable(w, callBack)
 		gridLayout.addWidget(tableView, 0, 0, 1, 1)
 		
 		tableView.verticalHeader().hide()
 		tableView.horizontalHeader().hide()
 		tableView.setShowGrid(False)
-		tableView.setSelectionMode(QtGui.QAbstractItemView.NoSelection)
+		tableView.setSelectionMode(QtWidgets.QAbstractItemView.NoSelection)
 		tableView.setColumnCount(1)
 		tableView.setColumnWidth(0, 800)
 		
@@ -533,7 +533,7 @@ class AbsQtScreen(AbsScreen):
 		i = 0
 		for item in items:
 			tableView.insertRow(i)
-			widgetItem = QtGui.QTableWidgetItem(item)
+			widgetItem = QtWidgets.QTableWidgetItem(item)
 			widgetItem.setFlags(QtCore.Qt.ItemIsUserCheckable | QtCore.Qt.ItemIsEnabled)
 			if item in defaultValue:
 				widgetItem.setCheckState(2)
@@ -549,17 +549,17 @@ class AbsQtScreen(AbsScreen):
 		self.__addWidget(w)
 
 #in the soon future, maybe all widgets will be extended
-class AbsQtQTable(QtGui.QTableWidget):
+class AbsQtQTable(QtWidgets.QTableWidget):
 	def __init__(self, w, callBack):
-		QtGui.QTableWidget.__init__(self, w)
+		QtWidgets.QTableWidget.__init__(self, w)
 		self.callBack = callBack
 
 	def mouseReleaseEvent(self, e):
-		QtGui.QTableWidget.mouseReleaseEvent(self, e)
+		QtWidgets.QTableWidget.mouseReleaseEvent(self, e)
 		if self.callBack:
 			self.callBack()
 
 	def keyPressEvent(self, e):
-		QtGui.QTableWidget.keyPressEvent(self, e)
+		QtWidgets.QTableWidget.keyPressEvent(self, e)
 		if self.callBack:
 			self.callBack()
