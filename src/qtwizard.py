@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from wizard import *
 import sys
-from PyQt5 import QtCore, QtWidgets
-from PyQt5 import QtGui, QtWidgets
+from wizard import *
+from PyQt5 import QtCore, QtWidgets, QtGui
+from PyQt5.QtWidgets import QMessageBox
 
 class NewQWizard(QtWidgets.QWizard):
 	def __init__(self, qabswizard):
@@ -35,18 +35,26 @@ class AbsQtWizard(AbsWizard):
 		self.qwizard.setGeometry(QtCore.QRect(50, 50, 600, 600))
 		self.messageBoxPending = 0
 
-	def showMessageBox(self, message, buttons = ['Ok', 'Cancel']):
+	def showMessageBox(self, message, str_buttons = ["Ok", "Cancel"]):
+		map_buttons = {
+			"Ok":     QMessageBox.Ok,
+			"Cancel": QMessageBox.Cancel,
+			"Yes":    QMessageBox.Yes,
+			"No":     QMessageBox.No,
+			"Info":   QMessageBox.Help,
+		}
+		buttons = [map_buttons[b] for b in str_buttons]
 		if self.messageBoxPending:
 			return ''
 		self.messageBoxPending = 1
 		if len(buttons) == 1:
 			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0])
 		elif len(buttons) == 2:
-			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1])
+			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0] | buttons[1])
 		if len(buttons) >= 3:
-			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0], buttons[1], buttons[2])
+			i = QtWidgets.QMessageBox.warning(self.qwizard, str(self.qwizard.windowTitle())+' warning', message, buttons[0] | buttons[1] | buttons[2])
 		self.messageBoxPending = 0
-		return buttons[i]
+		return [key for key in map_buttons if map_buttons[key] == i][0]
 
 	def start(self):
 		#self.app.setMainWidget(self.qwizard)
