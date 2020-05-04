@@ -89,12 +89,12 @@ class AbsTranslator :
 	def tr(self,s) :
 		if self.lang and self.doc :
 			rs = s.replace("'",'&apos;').replace("\\", '&quot;')
-			results = self.doc.xpathEval('/TS/context/message[source = \'%s\']/translation/text()'%(rs,))
+			results = self.doc.xpathEval('/TS/context/message[source = \'{}\']/translation/text()'.format(rs))
 			if not results :
 				return s
-			contents = results[0].content.replace('&apos;',"'").replace('&quot;',"\\").decode('utf-8')
-			if self.mode == 'curses' :
-				contents = contents.encode(locale.getpreferredencoding())
+			contents = results[0].content.replace('&apos;',"'").replace('&quot;',"\\")
+			if type(contents) == bytes:
+				contents = contents.decode('utf-8')
 			return contents
 		else :
 			return s
